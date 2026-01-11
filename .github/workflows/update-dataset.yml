@@ -42,7 +42,7 @@ jobs:
       
       # 2. Configurar Python
       - name: 🐍 Configurar Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
