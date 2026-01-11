@@ -11,12 +11,17 @@ export interface BreachInfo {
   data_classes: string[];
 }
 
+export interface BreachCandidate {
+  hash: string;
+  breach_name: string;
+  breach_date: string;
+  data_classes: string[];
+}
+
 export interface BreachCheckResponse {
   prefix: string;
-  found: boolean;
-  total_matches: number;
-  breaches: BreachInfo[];
-  privacy_note: string;
+  count: number;
+  candidates: BreachCandidate[];
 }
 
 export interface ApiStats {
@@ -66,13 +71,24 @@ export async function checkEmailBreach(email: string): Promise<{
   
   const data: BreachCheckResponse = await response.json();
   
-  // 3. Verificar localmente se o hash completo está na lista
-  // (O backend retorna todos os hashes que começam com o prefixo)
-  // Por agora, simplificamos retornando o resultado direto
+  // 3. Verificar localmente se o hash completo está na lista (K-Anonymity)
+  // O backend retorna todos os hashes que começam com o prefixo
+  // Comparamos localmente para manter a privacidade
+  const matchedBreaches: BreachInfo[] = [];
+  
+  for (const candidate of data.candidates) {
+    if (candidate.hash === fullHash) {
+      matchedBreaches.push({
+        name: candidate.breach_name,
+        date: candidate.breach_date,
+        data_classes: candidate.data_classes,
+      });
+    }
+  }
   
   return {
-    found: data.found,
-    breaches: data.breaches,
+    found: matchedBreaches.length > 0,
+    breaches: matchedBreaches,
     fullHash,
   };
 }
