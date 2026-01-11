@@ -31,6 +31,17 @@ updates:
     labels:
       - "dependencies"
       - "frontend"
+    # Ignorar atualizações major do React (requer migração manual)
+    # O projeto usa React 18 - atualização para React 19+ deve ser manual
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
     # Agrupa atualizações pequenas num único PR para menos ruído
     groups:
       minor-and-patch:
