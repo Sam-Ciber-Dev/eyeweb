@@ -1,0 +1,102 @@
+# =============================================================================
+# Dependabot Configuration - Eye Web Monorepo
+# =============================================================================
+# Este ficheiro configura o GitHub Dependabot para manter automaticamente
+# todas as dependências do projeto atualizadas.
+#
+# O que acontece:
+# 1. Uma vez por mês, o Dependabot verifica se há atualizações
+# 2. Se houver, cria Pull Requests automaticamente
+# 3. A Vercel/Render fazem preview deploys para testar
+# 4. Tu aceitas (ou o auto-merge aceita por ti)
+# =============================================================================
+
+version: 2
+
+updates:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Frontend (Next.js / npm)
+  # ─────────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Lisbon"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "npm"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "frontend"
+    # Agrupa atualizações pequenas num único PR para menos ruído
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Backend (FastAPI / pip)
+  # ─────────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Lisbon"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "pip"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Updater Script (pip)
+  # ─────────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/updater"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Lisbon"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "pip"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "updater"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # GitHub Actions
+  # ─────────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Lisbon"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "ci"
