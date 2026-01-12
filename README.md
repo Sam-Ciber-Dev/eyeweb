@@ -285,7 +285,7 @@ Para testar a aplicação, usa estes dados que estão no dataset:
 Projeto académico desenvolvido para a **Prova de Aptidão Profissional (PAP)**.
 
 **Autor:** Samuel  
-**Curso:** Técnico de Gestão e Programação de Sistemas Informáticos  
+**Curso:** CyberSecurity  
 **Ano:** 2025/2026
 
 ---
