@@ -134,11 +134,11 @@ class Settings(BaseSettings):
     # URL CHECKER SETTINGS
     # ===========================================
     
-    # Tempo de cache em segundos (24 horas)
-    URL_CACHE_TTL_SECONDS: int = 86400
+    # Tempo de cache em segundos (30 dias)
+    URL_CACHE_TTL_SECONDS: int = 2592000
     
-    # Tempo máximo para considerar cache "fresco" (1 hora)
-    URL_CACHE_FRESH_SECONDS: int = 3600
+    # Tempo máximo para considerar cache "fresco" (30 dias = 1 mês)
+    URL_CACHE_FRESH_SECONDS: int = 2592000
     
     # ===========================================
     # CONFIGURAÇÃO DO PYDANTIC

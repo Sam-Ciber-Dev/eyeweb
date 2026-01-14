@@ -43,17 +43,9 @@ export default function UrlChecker() {
     }
   };
 
-  const formatCacheInfo = (result: UrlCheckResult) => {
-    if (!result.from_cache) return 'Verificação nova';
-    if (result.cache_age_seconds) {
-      const minutes = Math.floor(result.cache_age_seconds / 60);
-      if (minutes < 1) return `Cache (< 1 min)`;
-      if (minutes < 60) return `Cache (${minutes} min)`;
-      const hours = Math.floor(minutes / 60);
-      return `Cache (${hours}h)`;
-    }
-    return 'Do cache';
-  };
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  const tooltipText = "Quando verificas um URL, guardamos o resultado para que futuras verificações do mesmo URL sejam instantâneas. Após 1 mês, o URL é automaticamente re-verificado para garantir que a informação está atualizada.";
 
   return (
     <div className="card">
@@ -123,14 +115,58 @@ export default function UrlChecker() {
               </p>
             </div>
 
-            {/* Info do cache */}
+            {/* Info de verificação */}
             <p style={{ 
               marginTop: '1rem', 
               fontSize: '0.8rem', 
               color: 'var(--gray)',
-              textAlign: 'right'
+              textAlign: 'right',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '0.25rem'
             }}>
-              {formatCacheInfo(result)} • {new Date(result.last_check).toLocaleString('pt-PT')}
+              {result.from_cache ? 'URL verificado anteriormente pelos serviços do Eye Web' : 'URL verificado pelo Eye Web'}
+              <span 
+                style={{ 
+                  cursor: 'pointer',
+                  position: 'relative',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.1)',
+                  fontSize: '0.7rem',
+                  fontWeight: 'bold'
+                }}
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+              >
+                i
+                {showTooltip && (
+                  <span style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    right: '0',
+                    marginBottom: '8px',
+                    padding: '0.75rem',
+                    background: 'var(--card-bg)',
+                    border: '1px solid var(--gray)',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                    lineHeight: '1.4',
+                    width: '250px',
+                    textAlign: 'left',
+                    color: 'var(--text)',
+                    zIndex: 100,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                  }}>
+                    {tooltipText}
+                  </span>
+                )}
+              </span>
             </p>
           </div>
         </div>
