@@ -253,6 +253,131 @@ async def check_google_safe_browsing(url: str) -> dict:
 
 
 # ===========================================
+# SSL/TLS VERIFICATION
+# ===========================================
+
+import ssl
+import socket
+from urllib.parse import urlparse
+
+async def check_ssl(url: str) -> dict:
+    """
+    Verifica o certificado SSL/TLS do URL.
+    
+    Verifica:
+    - Se usa HTTPS
+    - Se certificado é válido
+    - Se não está expirado
+    - Informações do certificado
+    
+    Returns:
+        Dict com resultado da verificação SSL.
+    """
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+    
+    # Se não é HTTPS, já é suspeito
+    if parsed.scheme != 'https':
+        logger.warning(f"⚠️ URL não usa HTTPS: {url}")
+        return {
+            "checked": True,
+            "has_ssl": False,
+            "status": "suspicious",
+            "reason": "Site não usa HTTPS",
+            "source": "ssl_checker"
+        }
+    
+    try:
+        # Criar contexto SSL
+        context = ssl.create_default_context()
+        
+        # Conectar ao servidor
+        loop = asyncio.get_event_loop()
+        
+        def get_cert():
+            with socket.create_connection((hostname, port), timeout=10) as sock:
+                with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                    cert = ssock.getpeercert()
+                    return cert
+        
+        cert = await loop.run_in_executor(None, get_cert)
+        
+        if not cert:
+            return {
+                "checked": True,
+                "has_ssl": False,
+                "status": "suspicious",
+                "reason": "Não foi possível obter certificado",
+                "source": "ssl_checker"
+            }
+        
+        # Extrair informações do certificado
+        issuer = dict(x[0] for x in cert.get('issuer', []))
+        subject = dict(x[0] for x in cert.get('subject', []))
+        not_after = cert.get('notAfter', '')
+        
+        # Verificar se expirou
+        from datetime import datetime
+        try:
+            expiry_date = datetime.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
+            is_expired = expiry_date < datetime.now()
+        except:
+            is_expired = False
+        
+        if is_expired:
+            logger.warning(f"⚠️ Certificado SSL expirado: {url}")
+            return {
+                "checked": True,
+                "has_ssl": True,
+                "status": "suspicious",
+                "reason": "Certificado SSL expirado",
+                "issuer": issuer.get('organizationName', 'Desconhecido'),
+                "expiry": not_after,
+                "source": "ssl_checker"
+            }
+        
+        # Certificado válido
+        logger.info(f"✅ SSL válido para {hostname}")
+        return {
+            "checked": True,
+            "has_ssl": True,
+            "status": "safe",
+            "issuer": issuer.get('organizationName', issuer.get('commonName', 'Desconhecido')),
+            "subject": subject.get('commonName', hostname),
+            "expiry": not_after,
+            "source": "ssl_checker"
+        }
+        
+    except ssl.SSLCertVerificationError as e:
+        logger.error(f"❌ Certificado SSL inválido: {e}")
+        return {
+            "checked": True,
+            "has_ssl": True,
+            "status": "malicious",
+            "reason": "Certificado SSL inválido ou não confiável",
+            "error": str(e),
+            "source": "ssl_checker"
+        }
+    except socket.timeout:
+        logger.error(f"❌ Timeout ao verificar SSL")
+        return {
+            "checked": False,
+            "status": "unknown",
+            "error": "timeout",
+            "source": "ssl_checker"
+        }
+    except Exception as e:
+        logger.error(f"❌ Erro ao verificar SSL: {e}")
+        return {
+            "checked": False,
+            "status": "unknown",
+            "error": str(e),
+            "source": "ssl_checker"
+        }
+
+
+# ===========================================
 # GROQ AI ANALYSIS
 # ===========================================
 
@@ -276,18 +401,32 @@ async def get_ai_opinion(url: str, scan_results: dict) -> Optional[str]:
     
     # Construir prompt com contexto dos scans
     google_result = scan_results.get("google_safe_browsing", {})
+    ssl_result = scan_results.get("ssl_check", {})
+    
+    # Construir descrição do SSL
+    ssl_desc = "Não verificado"
+    if ssl_result.get("checked"):
+        if not ssl_result.get("has_ssl"):
+            ssl_desc = "⚠️ Site não usa HTTPS"
+        elif ssl_result.get("status") == "malicious":
+            ssl_desc = "❌ Certificado inválido ou não confiável"
+        elif ssl_result.get("status") == "suspicious":
+            ssl_desc = f"⚠️ {ssl_result.get('reason', 'Problema com certificado')}"
+        else:
+            ssl_desc = f"✅ Válido (emitido por {ssl_result.get('issuer', 'desconhecido')})"
     
     prompt = f"""Analisa este URL e dá uma opinião concisa sobre a sua segurança.
 
 URL: {url}
 
-Resultado do Google Safe Browsing:
-- {"Ameaça detectada: " + str(google_result.get("threats")) if google_result.get("is_threat") else "Nenhuma ameaça detectada" if google_result.get("checked") else "Não verificado"}
+Resultados das verificações:
+- Google Safe Browsing: {"Ameaça detectada: " + str(google_result.get("threats")) if google_result.get("is_threat") else "Nenhuma ameaça detectada" if google_result.get("checked") else "Não verificado"}
+- Certificado SSL: {ssl_desc}
 
 Responde em Português de Portugal, de forma concisa (máximo 2-3 frases).
-Indica se o URL parece seguro, suspeito ou perigoso, e porquê.
+Baseado nos resultados acima, indica se o URL é SEGURO, SUSPEITO ou PERIGOSO.
 Considera também o domínio, estrutura do URL, e padrões comuns de phishing/scam.
-Se parecer suspeito, diz claramente "suspeito" ou "cautela"."""
+Usa palavras como "seguro", "suspeito", "cautela" ou "perigoso" na tua resposta."""
 
     payload = {
         "model": settings.GROQ_MODEL,
@@ -400,25 +539,37 @@ async def _perform_full_check(url: str, url_hash: str) -> dict:
     
     logger.info(f"🔄 Performing full check for {url[:50]}...")
     
-    # Executar Google Safe Browsing
-    google_result = await check_google_safe_browsing(url)
+    # Executar verificações em paralelo
+    google_task = check_google_safe_browsing(url)
+    ssl_task = check_ssl(url)
+    
+    google_result, ssl_result = await asyncio.gather(
+        google_task,
+        ssl_task,
+        return_exceptions=True
+    )
     
     # Tratar exceções
     if isinstance(google_result, Exception):
         logger.error(f"Google Safe Browsing exception: {google_result}")
         google_result = {"checked": False, "error": str(google_result)}
     
+    if isinstance(ssl_result, Exception):
+        logger.error(f"SSL check exception: {ssl_result}")
+        ssl_result = {"checked": False, "status": "unknown", "error": str(ssl_result)}
+    
     scan_results = {
-        "google_safe_browsing": google_result
+        "google_safe_browsing": google_result,
+        "ssl_check": ssl_result
     }
     
-    # Determinar status baseado no resultado do Google
-    status = _determine_status(google_result)
+    # Determinar status baseado nos resultados
+    status = _determine_status(google_result, ssl_result)
     
     # Obter opinião da IA
     ai_opinion = await get_ai_opinion(url, scan_results)
     
-    # Se Google diz SAFE mas IA detecta suspeita → SUSPICIOUS
+    # Se status é SAFE mas IA detecta suspeita → SUSPICIOUS
     if status == URLStatus.SAFE and ai_opinion:
         ai_lower = ai_opinion.lower()
         if any(word in ai_lower for word in ['suspeito', 'suspicious', 'cuidado', 'cautela', 'evitar', 'perigoso', 'phishing', 'scam', 'fraude']):
@@ -454,19 +605,28 @@ async def _background_recheck(url: str, url_hash: str):
         logger.error(f"❌ Background recheck failed: {e}")
 
 
-def _determine_status(google_result: dict) -> URLStatus:
-    """Determina status final baseado no resultado do Google Safe Browsing."""
+def _determine_status(google_result: dict, ssl_result: dict) -> URLStatus:
+    """Determina status final baseado nos resultados do Google Safe Browsing e SSL."""
     
     # Se Google Safe Browsing detectou ameaça → MALICIOUS
     if google_result.get("is_threat"):
         return URLStatus.MALICIOUS
     
-    # Se verificou e não encontrou nada → SAFE
-    if google_result.get("checked") and not google_result.get("is_threat"):
-        return URLStatus.SAFE
+    # Se SSL é inválido/não confiável → MALICIOUS
+    if ssl_result.get("status") == "malicious":
+        return URLStatus.MALICIOUS
     
-    # Se não conseguiu verificar → UNKNOWN
-    if not google_result.get("checked"):
+    # Se SSL é suspeito (expirado, sem HTTPS) → SUSPICIOUS
+    if ssl_result.get("status") == "suspicious":
+        return URLStatus.SUSPICIOUS
+    
+    # Se Google verificou e não encontrou nada + SSL ok → SAFE
+    if google_result.get("checked") and not google_result.get("is_threat"):
+        if ssl_result.get("status") == "safe" or not ssl_result.get("checked"):
+            return URLStatus.SAFE
+    
+    # Se nenhum scanner funcionou → UNKNOWN
+    if not google_result.get("checked") and not ssl_result.get("checked"):
         return URLStatus.UNKNOWN
     
     # Caso padrão

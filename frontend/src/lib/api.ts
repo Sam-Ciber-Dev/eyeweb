@@ -577,6 +577,17 @@ export interface UrlCheckResult {
       source?: string;
       error?: string;
     };
+    ssl_check?: {
+      checked: boolean;
+      has_ssl?: boolean;
+      status?: 'safe' | 'suspicious' | 'malicious' | 'unknown';
+      reason?: string;
+      issuer?: string;
+      subject?: string;
+      expiry?: string;
+      error?: string;
+      source?: string;
+    };
   };
   last_check: string;
   from_cache: boolean;
@@ -586,7 +597,7 @@ export interface UrlCheckResult {
 
 /**
  * Verifica a segurança de um URL usando a API com IA
- * Utiliza Google Safe Browsing e Groq AI (Llama 3)
+ * Utiliza Google Safe Browsing, SSL Check e Groq AI (Llama 3)
  */
 export async function checkUrlWithAI(url: string, forceRecheck: boolean = false): Promise<UrlCheckResult> {
   const response = await fetch(`${API_BASE_URL}/api/v1/urls/check`, {
