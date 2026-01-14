@@ -350,11 +350,11 @@ async def check_ssl(url: str) -> dict:
         }
         
     except ssl.SSLCertVerificationError as e:
-        logger.error(f"❌ Certificado SSL inválido: {e}")
+        logger.warning(f"⚠️ Certificado SSL inválido: {e}")
         return {
             "checked": True,
             "has_ssl": True,
-            "status": "malicious",
+            "status": "suspicious",
             "reason": "Certificado SSL inválido ou não confiável",
             "error": str(e),
             "source": "ssl_checker"
@@ -415,18 +415,18 @@ async def get_ai_opinion(url: str, scan_results: dict) -> Optional[str]:
         else:
             ssl_desc = f"✅ Válido (emitido por {ssl_result.get('issuer', 'desconhecido')})"
     
-    prompt = f"""Analisa este URL e dá uma opinião concisa sobre a sua segurança.
+    prompt = f"""URL: {url}
 
-URL: {url}
+Resultados:
+- Google Safe Browsing: {"AMEAÇA DETECTADA: " + str(google_result.get("threats")) if google_result.get("is_threat") else "OK" if google_result.get("checked") else "Não verificado"}
+- SSL: {ssl_desc}
 
-Resultados das verificações:
-- Google Safe Browsing: {"Ameaça detectada: " + str(google_result.get("threats")) if google_result.get("is_threat") else "Nenhuma ameaça detectada" if google_result.get("checked") else "Não verificado"}
-- Certificado SSL: {ssl_desc}
+Classificação:
+- Google SB detectou ameaça → diz "O URL é PERIGOSO porque..."
+- SSL com problemas (mas Google OK) → diz "O URL é SUSPEITO porque..."
+- Ambos OK → diz "O URL é SEGURO porque..."
 
-Responde em Português de Portugal, de forma concisa (máximo 2-3 frases).
-Baseado nos resultados acima, indica se o URL é SEGURO, SUSPEITO ou PERIGOSO.
-Considera também o domínio, estrutura do URL, e padrões comuns de phishing/scam.
-Usa palavras como "seguro", "suspeito", "cautela" ou "perigoso" na tua resposta."""
+Responde DIRETAMENTE com "O URL é [SEGURO/SUSPEITO/PERIGOSO] porque..." em Português de Portugal (máximo 2 frases)."""
 
     payload = {
         "model": settings.GROQ_MODEL,
@@ -563,17 +563,14 @@ async def _perform_full_check(url: str, url_hash: str) -> dict:
         "ssl_check": ssl_result
     }
     
-    # Determinar status baseado nos resultados
+    # Determinar status baseado nos checkers:
+    # - 1 diz Perigoso → Perigoso
+    # - 1 diz Suspeito → Suspeito
+    # - AMBOS Seguros → Seguro
     status = _determine_status(google_result, ssl_result)
     
-    # Obter opinião da IA
+    # Obter opinião da IA (apenas explica o que os checkers dizem)
     ai_opinion = await get_ai_opinion(url, scan_results)
-    
-    # Se status é SAFE mas IA detecta suspeita → SUSPICIOUS
-    if status == URLStatus.SAFE and ai_opinion:
-        ai_lower = ai_opinion.lower()
-        if any(word in ai_lower for word in ['suspeito', 'suspicious', 'cuidado', 'cautela', 'evitar', 'perigoso', 'phishing', 'scam', 'fraude']):
-            status = URLStatus.SUSPICIOUS
     
     # Guardar em cache
     await save_to_cache(
@@ -605,29 +602,59 @@ async def _background_recheck(url: str, url_hash: str):
         logger.error(f"❌ Background recheck failed: {e}")
 
 
-def _determine_status(google_result: dict, ssl_result: dict) -> URLStatus:
-    """Determina status final baseado nos resultados do Google Safe Browsing e SSL."""
+def _extract_ai_verdict(ai_opinion: str) -> URLStatus:
+    """
+    Extrai o veredito da IA a partir da sua opinião.
+    A IA responde com SEGURO, SUSPEITO ou PERIGOSO no texto.
+    """
+    ai_lower = ai_opinion.lower()
     
-    # Se Google Safe Browsing detectou ameaça → MALICIOUS
+    # Verificar palavras de PERIGOSO (prioridade máxima)
+    danger_words = ['perigoso', 'malicioso', 'evitar', 'não aceder', 'não acessar', 'fraude confirmada', 'phishing confirmado']
+    if any(word in ai_lower for word in danger_words):
+        return URLStatus.MALICIOUS
+    
+    # Verificar palavras de SUSPEITO
+    suspect_words = ['suspeito', 'cautela', 'cuidado', 'atenção', 'desconfiar', 'possível phishing', 'possível fraude']
+    if any(word in ai_lower for word in suspect_words):
+        # Mas verificar se não é negação (ex: "não é suspeito")
+        negations = ['não é suspeito', 'não parece suspeito', 'sem sinais de', 'não há indícios', 'não apresenta', 'nenhum sinal']
+        if any(neg in ai_lower for neg in negations):
+            return URLStatus.SAFE
+        return URLStatus.SUSPICIOUS
+    
+    # Verificar palavras de SEGURO
+    safe_words = ['seguro', 'confiável', 'legítimo', 'legítima', 'oficial', 'verificado', 'autêntico']
+    if any(word in ai_lower for word in safe_words):
+        return URLStatus.SAFE
+    
+    # Se não conseguiu determinar, assume SAFE (não altera o status)
+    return URLStatus.SAFE
+
+
+def _determine_status(google_result: dict, ssl_result: dict) -> URLStatus:
+    """
+    Determina status final:
+    - Google SB = Perigoso → URL: Perigoso
+    - SSL = Suspeito (qualquer problema) → URL: Suspeito
+    - Ambos OK → URL: Seguro
+    """
+    
+    # Google SB detectou ameaça → PERIGOSO (sempre)
     if google_result.get("is_threat"):
         return URLStatus.MALICIOUS
     
-    # Se SSL é inválido/não confiável → MALICIOUS
-    if ssl_result.get("status") == "malicious":
-        return URLStatus.MALICIOUS
-    
-    # Se SSL é suspeito (expirado, sem HTTPS) → SUSPICIOUS
+    # SSL tem qualquer problema → SUSPEITO
     if ssl_result.get("status") == "suspicious":
         return URLStatus.SUSPICIOUS
     
-    # Se Google verificou e não encontrou nada + SSL ok → SAFE
+    # Ambos OK → SEGURO
+    if google_result.get("checked") and ssl_result.get("status") == "safe":
+        return URLStatus.SAFE
+    
+    # Se apenas Google verificou e está OK → SEGURO
     if google_result.get("checked") and not google_result.get("is_threat"):
-        if ssl_result.get("status") == "safe" or not ssl_result.get("checked"):
-            return URLStatus.SAFE
+        return URLStatus.SAFE
     
-    # Se nenhum scanner funcionou → UNKNOWN
-    if not google_result.get("checked") and not ssl_result.get("checked"):
-        return URLStatus.UNKNOWN
-    
-    # Caso padrão
-    return URLStatus.SAFE
+    # Nenhum funcionou → UNKNOWN
+    return URLStatus.UNKNOWN

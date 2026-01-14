@@ -190,7 +190,7 @@ export default function UrlChecker() {
               background: 'rgba(0,0,0,0.2)',
               borderRadius: '8px'
             }}>
-              <span style={{ minWidth: '140px', color: 'var(--gray)' }}>Google Safe Browsing:</span>
+              <span style={{ minWidth: '140px', color: 'var(--gray)' }}>Google SB:</span>
               {showGoogleLoading && !showGoogleResult && (
                 <div className="loading-spinner" style={{
                   width: '18px',
@@ -222,7 +222,7 @@ export default function UrlChecker() {
               background: 'rgba(0,0,0,0.2)',
               borderRadius: '8px'
             }}>
-              <span style={{ minWidth: '140px', color: 'var(--gray)' }}>Certificado SSL:</span>
+              <span style={{ minWidth: '140px', color: 'var(--gray)' }}>Checker SSL:</span>
               {showSslLoading && !showSslResult && (
                 <div className="loading-spinner" style={{
                   width: '18px',
@@ -289,7 +289,7 @@ export default function UrlChecker() {
                   color: 'var(--primary)',
                   fontSize: '0.9rem'
                 }}>
-                  🤖 Análise IA:
+                  Agente IA
                 </p>
                 <p style={{ 
                   margin: 0, 
@@ -368,9 +368,7 @@ export default function UrlChecker() {
         </div>
       )}
 
-      <p style={{ color: 'var(--gray)', fontSize: '0.8rem', marginTop: '1rem', textAlign: 'center' }}>
-        🤖 Verificação com IA (Google Safe Browsing + SSL + Llama 3)
-      </p>
+
 
       <style jsx>{`
         @keyframes spin {
