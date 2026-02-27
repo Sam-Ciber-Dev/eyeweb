@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { checkEmailBreach, BreachInfo } from '@/lib/api';
 import BreachResults from './BreachResults';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function EmailChecker() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,7 @@ export default function EmailChecker() {
     searched: boolean;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +34,7 @@ export default function EmailChecker() {
       });
     } catch (err) {
       console.error('Error checking email:', err);
-      setError('Erro ao verificar. Tenta novamente mais tarde.');
+      setError(t('email.error'));
     } finally {
       setLoading(false);
     }
@@ -45,21 +47,21 @@ export default function EmailChecker() {
           <input
             type="email"
             className="input"
-            placeholder="Introduz o teu email..."
+            placeholder={t('email.placeholder')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
         </div>
         <button type="submit" className="btn" disabled={loading || !email.trim()}>
-          {loading ? 'A verificar...' : 'Verificar Email'}
+          {loading ? t('email.checking') : t('email.check')}
         </button>
       </form>
 
       {loading && (
         <div className="loading">
           <div className="spinner"></div>
-          <span>A procurar em fugas de dados...</span>
+          <span>{t('email.searching')}</span>
         </div>
       )}
 

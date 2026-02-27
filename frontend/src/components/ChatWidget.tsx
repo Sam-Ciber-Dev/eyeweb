@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
+import { useLanguage } from '@/contexts/LanguageContext';
 import './ChatWidget.css';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -22,6 +23,7 @@ export default function ChatWidget() {
 }
 
 function ChatWidgetInner() {
+  const { t, lang } = useLanguage();
   const [isVisible, setIsVisible] = useState(false); // Só mostra depois do splash
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false); // Para animação de fade-out
@@ -71,7 +73,7 @@ function ChatWidgetInner() {
       } catch {}
     }
     // Primeira vez — mensagem de boas-vindas
-    const welcome: ChatMsg = { text: 'Seja bem-vindo ao EyeWeb! Como posso ajudar?', type: 'ew-bot' };
+    const welcome: ChatMsg = { text: t('chat.welcome'), type: 'ew-bot' };
     setMessages([welcome]);
     sessionStorage.setItem('ewChatHistory', JSON.stringify([welcome]));
   }, []);
@@ -151,10 +153,10 @@ function ChatWidgetInner() {
       const res = await fetch(`${API_URL}/api/user/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, lang }),
       });
       const data = await res.json();
-      const botText = data.response || 'Erro ao processar. Tente novamente.';
+      const botText = data.response || t('chat.error');
 
       // Typewriter effect + cooldown
       typeWriter(botText, () => {
@@ -162,7 +164,7 @@ function ChatWidgetInner() {
         applyCooldown();
       });
     } catch {
-      const errText = 'Erro ao ligar ao servidor. Tente mais tarde.';
+      const errText = t('chat.serverError');
       typeWriter(errText, () => {
         setMessages(prev => [...prev, { text: errText, type: 'ew-bot' }]);
         applyCooldown();
@@ -217,7 +219,7 @@ function ChatWidgetInner() {
           <div className="ew-header">
             <strong>EyeWeb Agent</strong>
             <div className="ew-header-actions">
-              <span className="ew-resize" onClick={() => setIsExpanded(prev => !prev)} title={isExpanded ? 'Reduzir' : 'Expandir'}>
+              <span className="ew-resize" onClick={() => setIsExpanded(prev => !prev)} title={isExpanded ? t('chat.reduce') : t('chat.expand')}>
                 {isExpanded ? (
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
                 ) : (
@@ -249,7 +251,7 @@ function ChatWidgetInner() {
             <input
               ref={inputRef}
               type="text"
-              placeholder={isDisabled ? 'Aguarde a resposta...' : 'Escrever...'}
+              placeholder={isDisabled ? t('chat.waitPlaceholder') : t('chat.placeholder')}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}

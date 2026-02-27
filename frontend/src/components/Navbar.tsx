@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Avatar from '@/components/Avatar';
 
 interface NavbarProps {
@@ -13,6 +14,7 @@ interface NavbarProps {
 export default function Navbar({ showLogin = true }: NavbarProps) {
   const router = useRouter();
   const { user, profile, isAuthenticated, isAdmin, logout, loading } = useAuth();
+  const { lang, setLang, t } = useLanguage();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -43,7 +45,7 @@ export default function Navbar({ showLogin = true }: NavbarProps) {
   const getDisplayName = () => {
     if (profile?.display_name) return profile.display_name;
     if (user?.email) return user.email.split('@')[0];
-    return 'Utilizador';
+    return t('nav.userFallback');
   };
 
   // Get avatar URL from profile or user metadata
@@ -62,6 +64,14 @@ export default function Navbar({ showLogin = true }: NavbarProps) {
         Eye Web
       </Link>
       <div className="navbar-right">
+        <button
+          className="lang-toggle"
+          onClick={() => setLang(lang === 'pt' ? 'en' : 'pt')}
+          title={lang === 'pt' ? 'Switch to English' : 'Mudar para Português'}
+        >
+          {lang === 'pt' ? 'EN' : 'PT'}
+        </button>
+
         <Link href="/about" className="nav-link">
           About
         </Link>
@@ -100,7 +110,7 @@ export default function Navbar({ showLogin = true }: NavbarProps) {
                       onClick={() => setDropdownOpen(false)}
                     >
                       <i className="fa-solid fa-user"></i>
-                      O meu perfil
+                      {t('nav.profile')}
                     </Link>
                     
                     {isAdmin && (
@@ -110,7 +120,7 @@ export default function Navbar({ showLogin = true }: NavbarProps) {
                         onClick={() => setDropdownOpen(false)}
                       >
                         <i className="fa-solid fa-gauge-high"></i>
-                        Painel Admin
+                        {t('nav.admin')}
                       </Link>
                     )}
                     
@@ -121,7 +131,7 @@ export default function Navbar({ showLogin = true }: NavbarProps) {
                       onClick={handleLogout}
                     >
                       <i className="fa-solid fa-right-from-bracket"></i>
-                      Terminar sessão
+                      {t('nav.logout')}
                     </button>
                   </div>
                 )}

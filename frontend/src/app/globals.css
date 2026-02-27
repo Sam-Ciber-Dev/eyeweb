@@ -186,6 +186,26 @@ body {
   color: var(--blue);
 }
 
+/* Language toggle button */
+.lang-toggle {
+  background: transparent;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  color: var(--gray);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: inherit;
+}
+.lang-toggle:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: rgba(0,123,255,0.08);
+}
+
 /* Nav Icon (Login icon) */
 .nav-icon {
   color: var(--gray);
@@ -598,67 +618,6 @@ body {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-/* ===========================================
-   About Page
-   =========================================== */
-
-.about-nav {
-  margin-top: 1rem;
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-}
-
-.about-nav a {
-  color: var(--gray);
-  text-decoration: none;
-  font-weight: bold;
-  transition: color 0.3s;
-}
-
-.about-nav a:hover {
-  color: var(--blue);
-}
-
-.about-section {
-  background: var(--card);
-  padding: 2rem;
-  border-radius: 8px;
-  margin-top: 2rem;
-  text-align: left;
-}
-
-.about-section h2 {
-  margin-top: 0;
-  margin-bottom: 1rem;
-  color: var(--blue);
-}
-
-.about-section p {
-  line-height: 1.7;
-  color: var(--gray);
-}
-
-.team-list {
-  list-style: none;
-  padding: 0;
-}
-
-.team-list li {
-  margin-bottom: 1.5rem;
-}
-
-.team-list strong {
-  display: block;
-  font-size: 1.1rem;
-  color: var(--white);
-}
-
-.team-list em {
-  color: var(--gray);
-  font-style: normal;
 }
 
 /* ===========================================

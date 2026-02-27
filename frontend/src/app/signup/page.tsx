@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase, isAdminEmail } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -19,47 +20,39 @@ interface NameValidation {
   error: string | null;
 }
 
-function validateDisplayName(name: string): NameValidation {
+function validateDisplayName(name: string, t: (key: string) => string): NameValidation {
   const trimmedName = name.trim();
   
-  // Verificar se está vazio
   if (!trimmedName) {
-    return { isValid: false, error: 'O nome não pode estar vazio.' };
+    return { isValid: false, error: t('signup.nameEmpty') };
   }
   
-  // Comprimento mínimo (2 caracteres)
   if (trimmedName.length < 2) {
-    return { isValid: false, error: 'O nome deve ter pelo menos 2 caracteres.' };
+    return { isValid: false, error: t('signup.nameMinChars') };
   }
   
-  // Comprimento máximo (30 caracteres)
   if (trimmedName.length > 30) {
-    return { isValid: false, error: 'O nome não pode ter mais de 30 caracteres.' };
+    return { isValid: false, error: t('signup.nameMaxChars') };
   }
   
-  // Deve começar com letra
   if (!/^[a-zA-ZÀ-ÿ]/.test(trimmedName)) {
-    return { isValid: false, error: 'O nome deve começar com uma letra.' };
+    return { isValid: false, error: t('signup.nameStartLetter') };
   }
   
-  // Apenas letras, espaços, hífens e apóstrofos permitidos
   if (!/^[a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ\s\-']*[a-zA-ZÀ-ÿ]$|^[a-zA-ZÀ-ÿ]$/.test(trimmedName)) {
-    return { isValid: false, error: 'O nome só pode conter letras, espaços, hífens e apóstrofos.' };
+    return { isValid: false, error: t('signup.nameOnlyLetters') };
   }
   
-  // Não permitir múltiplos espaços consecutivos
   if (/\s{2,}/.test(trimmedName)) {
-    return { isValid: false, error: 'O nome não pode ter espaços consecutivos.' };
+    return { isValid: false, error: t('signup.nameNoConsecutiveSpaces') };
   }
   
-  // Não permitir múltiplos hífens consecutivos
   if (/\-{2,}/.test(trimmedName)) {
-    return { isValid: false, error: 'O nome não pode ter hífens consecutivos.' };
+    return { isValid: false, error: t('signup.nameNoConsecutiveHyphens') };
   }
   
-  // Não permitir apenas números ou caracteres repetidos
   if (/^(.)\1+$/.test(trimmedName.replace(/\s/g, ''))) {
-    return { isValid: false, error: 'O nome não pode ser apenas caracteres repetidos.' };
+    return { isValid: false, error: t('signup.nameNoRepeated') };
   }
   
   // Lista de palavras/padrões não permitidos
@@ -73,7 +66,7 @@ function validateDisplayName(name: string): NameValidation {
   
   for (const pattern of blockedPatterns) {
     if (pattern.test(trimmedName)) {
-      return { isValid: false, error: 'Este nome não é permitido.' };
+      return { isValid: false, error: t('signup.nameNotAllowed') };
     }
   }
   
@@ -93,7 +86,7 @@ export default function SignupPage() {
     <Suspense fallback={
       <div className="auth-container">
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'white', background: '#0a0a0a' }}>
-          <p>A carregar...</p>
+          <p>Loading...</p>
         </div>
       </div>
     }>
@@ -106,6 +99,7 @@ function SignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signupWithGoogle, isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const fromGoogle = searchParams.get('from') === 'google';
   
   // Form state
@@ -216,11 +210,11 @@ function SignupContent() {
     if (emailParam && !email) setEmail(emailParam);
 
     if (errorParam === 'no_account' || errorParam === 'no_signup') {
-      setError('Esta conta Google não tem registo no EyeWeb. Cria uma conta primeiro preenchendo os dados abaixo.');
+      setError(t('signup.googleNotRegistered'));
     } else if (noticeParam === 'google_signup') {
-      setError('Preenche os dados abaixo para completar o teu registo.');
+      setError(t('signup.fillData'));
     } else if (errorParam === 'account_exists') {
-      setError('Este e-mail já tem uma conta criada. Faz login em vez de criar conta.');
+      setError(t('signup.emailAlreadyExists'));
     }
   }, [searchParams]);
 
@@ -274,7 +268,7 @@ function SignupContent() {
     setDisplayNameError(null);
 
     // Validar nome
-    const nameValidation = validateDisplayName(displayName);
+    const nameValidation = validateDisplayName(displayName, t);
     if (!nameValidation.isValid) {
       setDisplayNameError(nameValidation.error);
       return;
@@ -282,17 +276,17 @@ function SignupContent() {
 
     // Validações
     if (!isPasswordValid()) {
-      setError('A password não cumpre os requisitos mínimos.');
+      setError(t('signup.passwordRequirements'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('As passwords não coincidem.');
+      setError(t('signup.passwordMismatch'));
       return;
     }
 
     if (isAdminSignup) {
-      setError('Não é possível registar com este email. Contacta o administrador.');
+      setError(t('signup.emailBlocked'));
       return;
     }
 
@@ -300,7 +294,7 @@ function SignupContent() {
     if (fromGoogle) {
       // Captcha ainda é necessário para proteção contra bots
       if (!captchaToken) {
-        setError('Por favor, completa a verificação de segurança.');
+        setError(t('signup.completeSecurity'));
         return;
       }
 
@@ -329,7 +323,7 @@ function SignupContent() {
             setIsLoading(false);
             return;
           }
-          throw new Error(result.detail || 'Erro ao criar conta.');
+          throw new Error(result.detail || t('signup.createError'));
         }
 
         // Conta criada com email confirmado → fazer login automático
@@ -349,7 +343,7 @@ function SignupContent() {
         if (err.message?.includes('already') || err.message?.includes('registada')) {
           setShowEmailExistsError(true);
         } else {
-          setError(err.message || 'Erro ao criar conta. Tenta novamente.');
+          setError(err.message || t('signup.createErrorRetry'));
         }
         setIsLoading(false);
         return;
@@ -358,7 +352,7 @@ function SignupContent() {
 
     // ─── SIGNUP NORMAL: verificação por email ───
     if (!captchaToken) {
-      setError('Por favor, completa a verificação de segurança.');
+      setError(t('signup.completeSecurity'));
       return;
     }
 
@@ -409,7 +403,7 @@ function SignupContent() {
       if (err.message.includes('already registered') || err.message.includes('already been registered')) {
         setShowEmailExistsError(true);
       } else {
-        setError(err.message || 'Erro ao criar conta. Tenta novamente.');
+        setError(err.message || t('signup.createErrorRetry'));
       }
     } finally {
       setIsLoading(false);
@@ -475,7 +469,7 @@ function SignupContent() {
       window.location.href = '/';
     } catch (err: any) {
       console.error('Verification error:', err);
-      setError('Código inválido ou expirado. Tenta novamente.');
+      setError(t('signup.invalidCode'));
       setVerificationCode(['', '', '', '', '', '']);
       codeInputRefs.current[0]?.focus();
     } finally {
@@ -507,7 +501,7 @@ function SignupContent() {
       setResendCooldown(60);
     } catch (err: any) {
       console.error('Resend error:', err);
-      setError('Erro ao reenviar código. Tenta novamente.');
+      setError(t('signup.resendError'));
     } finally {
       setIsLoading(false);
     }
@@ -515,7 +509,7 @@ function SignupContent() {
 
   const handleGoogleSignup = async () => {
     if (isAdminSignup) {
-      setError('Administradores devem usar credenciais manuais.');
+      setError(t('signup.adminManualOnly'));
       return;
     }
 
@@ -526,7 +520,7 @@ function SignupContent() {
       await signupWithGoogle();
     } catch (err: any) {
       console.error('Google signup error:', err);
-      setError(err.message || 'Erro ao registar com Google.');
+      setError(err.message || t('signup.googleError'));
       setIsLoading(false);
     }
   };
@@ -536,7 +530,7 @@ function SignupContent() {
       <div className="auth-container">
         <div className="auth-loading">
           <div className="spinner"></div>
-          <p>A carregar...</p>
+          <p>{t('signup.loading')}</p>
         </div>
       </div>
     );
@@ -574,9 +568,9 @@ function SignupContent() {
             >
               <i className="fa-solid fa-envelope-circle-check"></i>
             </motion.div>
-            <h2>Verifica o teu email</h2>
+            <h2>{t('signup.verifyEmail')}</h2>
             <p>
-              Enviámos um código de verificação para{' '}
+              {t('signup.sentCodeTo')}{' '}
               <span className="email-highlight">{email}</span>
             </p>
           </motion.div>
@@ -627,8 +621,8 @@ function SignupContent() {
               disabled={resendCooldown > 0 || isLoading}
             >
               {resendCooldown > 0 
-                ? `Reenviar código em ${resendCooldown}s`
-                : 'Reenviar código'
+                ? `${t('signup.resendCodeIn')} ${resendCooldown}s`
+                : t('signup.resendCode')
               }
             </button>
           </div>
@@ -664,7 +658,7 @@ function SignupContent() {
                 whileHover={{ x: -5 }}
                 whileTap={{ scale: 0.95 }}
               >
-                ← Voltar ao formulário
+                {t('signup.backToForm')}
               </motion.button>
             </p>
           </motion.div>
@@ -702,7 +696,7 @@ function SignupContent() {
         {isAdminSignup && (
           <div className="auth-admin-warning">
             <i className="fa-solid fa-ban"></i>
-            <span>Este email não pode ser usado para registo</span>
+            <span>{t('signup.emailCannotRegister')}</span>
           </div>
         )}
 
@@ -725,7 +719,7 @@ function SignupContent() {
         <form onSubmit={handleSubmit} className="auth-form">
           {/* Display Name */}
           <div className="form-group">
-            <label htmlFor="displayName">Nome</label>
+            <label htmlFor="displayName">{t('signup.name')}</label>
             <div className="input-wrapper">
               <i className="fa-solid fa-user"></i>
               <input
@@ -733,7 +727,7 @@ function SignupContent() {
                 type="text"
                 value={displayName}
                 onChange={(e) => handleDisplayNameChange(e.target.value)}
-                placeholder="O teu nome"
+                placeholder={t('signup.namePlaceholder')}
                 autoComplete="off"
                 maxLength={30}
                 required
@@ -745,7 +739,7 @@ function SignupContent() {
                 <span>{displayNameError}</span>
               </div>
             )}
-            <small className="field-hint">2-30 caracteres. Apenas letras, espaços e hífens.</small>
+            <small className="field-hint">{t('signup.nameHint')}</small>
           </div>
 
           {/* Email */}
@@ -795,19 +789,19 @@ function SignupContent() {
                 <ul>
                   <li className={passwordStrength.hasMinLength ? 'valid' : 'invalid'}>
                     <i className={`fa-solid ${passwordStrength.hasMinLength ? 'fa-check' : 'fa-xmark'}`}></i>
-                    Mínimo 8 caracteres
+                    {t('signup.min8chars')}
                   </li>
                   <li className={passwordStrength.hasUppercase ? 'valid' : 'invalid'}>
                     <i className={`fa-solid ${passwordStrength.hasUppercase ? 'fa-check' : 'fa-xmark'}`}></i>
-                    Uma letra maiúscula
+                    {t('signup.oneUppercase')}
                   </li>
                   <li className={passwordStrength.hasLowercase ? 'valid' : 'invalid'}>
                     <i className={`fa-solid ${passwordStrength.hasLowercase ? 'fa-check' : 'fa-xmark'}`}></i>
-                    Uma letra minúscula
+                    {t('signup.oneLowercase')}
                   </li>
                   <li className={passwordStrength.hasNumber ? 'valid' : 'invalid'}>
                     <i className={`fa-solid ${passwordStrength.hasNumber ? 'fa-check' : 'fa-xmark'}`}></i>
-                    Um número
+                    {t('signup.oneNumber')}
                   </li>
                 </ul>
               </div>
@@ -816,7 +810,7 @@ function SignupContent() {
 
           {/* Confirm Password */}
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirmar Password</label>
+            <label htmlFor="confirmPassword">{t('signup.confirmPassword')}</label>
             <div className="input-wrapper">
               <i className="fa-solid fa-lock"></i>
               <input
@@ -834,11 +828,11 @@ function SignupContent() {
           {/* Email Already Exists Error */}
           {showEmailExistsError && (
             <div className="email-exists-error">
-              <span>Este e-mail já tem uma conta criada. </span>
+              <span>{t('signup.emailAlreadyAccount')}</span>
               <Link href="/login" className="login-link">
-                Clique aqui
+                {t('signup.clickHere')}
               </Link>
-              <span> para entrar.</span>
+              <span>{t('signup.toLogin')}</span>
             </div>
           )}
 
@@ -849,7 +843,7 @@ function SignupContent() {
                   <div className="turnstile-skeleton-icon">
                     <i className="fa-solid fa-shield-halved fa-beat-fade"></i>
                   </div>
-                  <span>A verificar segurança...</span>
+                  <span>{t('signup.verifyingSecurity')}</span>
                 </div>
               )}
               <div style={{ opacity: captchaLoading ? 0 : 1, transition: 'opacity 0.3s' }}>
@@ -878,7 +872,7 @@ function SignupContent() {
                     }}
                   />
                 ) : (
-                  <p style={{ color: 'red', fontSize: '12px' }}>Turnstile Site Key não configurada</p>
+                  <p style={{ color: 'red', fontSize: '12px' }}>{t('signup.turnstileNotConfigured')}</p>
                 )}
               </div>
             </div>
@@ -892,10 +886,10 @@ function SignupContent() {
             {isLoading ? (
               <>
                 <i className="fa-solid fa-spinner fa-spin"></i>
-                <span>A criar conta...</span>
+                <span>{t('signup.creating')}</span>
               </>
             ) : (
-              'Criar conta'
+              t('signup.createAccount')
             )}
           </button>
         </form>
@@ -904,7 +898,7 @@ function SignupContent() {
         {!isAdminSignup && !fromGoogle && (
           <>
             <div className="auth-divider">
-              <span>ou</span>
+              <span>{t('signup.or')}</span>
             </div>
 
             {/* Google Signup */}
@@ -920,7 +914,7 @@ function SignupContent() {
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              <span>Continuar com Google</span>
+              <span>{t('signup.continueWithGoogle')}</span>
             </button>
           </>
         )}
@@ -928,8 +922,8 @@ function SignupContent() {
         {/* Footer */}
         <div className="auth-footer">
           <p>
-            Já tens conta?{' '}
-            <Link href="/login">Entra aqui</Link>
+            {t('signup.alreadyHaveAccount')}{' '}
+            <Link href="/login">{t('signup.loginHere')}</Link>
           </p>
         </div>
         </motion.div>

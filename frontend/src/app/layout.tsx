@@ -3,6 +3,7 @@ import './globals.css'
 import './login/login.css'
 import './perfil/perfil.css'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { LanguageProvider } from '@/contexts/LanguageContext'
 import ChatWidget from '@/components/ChatWidget'
 import PageTracker from '@/components/PageTracker'
 
@@ -35,11 +36,13 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <AuthProvider>
-          <PageTracker />
-          {children}
-          <ChatWidget />
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <PageTracker />
+            {children}
+            <ChatWidget />
+          </AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   )

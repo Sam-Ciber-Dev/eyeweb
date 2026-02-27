@@ -883,8 +883,11 @@ async def get_chart_data():
         vpn_count = sum(1 for log in logs if log.get("is_vpn"))
         direct_count = len(logs) - vpn_count
 
-        # ── IPs unicos hoje ──
-        unique_ips = len(set(log.get("ip", "") for log in logs if log.get("ip")))
+        # ── IPs unicos hoje (excluindo infraestrutura) ──
+        unique_ips = len(set(
+            log.get("ip", "") for log in logs
+            if log.get("ip") and not _is_infra_ip(log.get("ip", ""))
+        ))
 
         # ── Metodos HTTP ──
         methods: dict[str, int] = {}

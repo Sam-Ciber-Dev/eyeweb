@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import Avatar from '@/components/Avatar';
@@ -17,50 +18,41 @@ interface NameValidation {
   error: string | null;
 }
 
-function validateDisplayName(name: string): NameValidation {
+function validateDisplayName(name: string, t: (key: string) => string): NameValidation {
   const trimmedName = name.trim();
   
-  // Verificar se está vazio
   if (!trimmedName) {
-    return { isValid: false, error: 'O nome não pode estar vazio.' };
+    return { isValid: false, error: t('signup.nameEmpty') };
   }
   
-  // Comprimento mínimo (2 caracteres)
   if (trimmedName.length < 2) {
-    return { isValid: false, error: 'O nome deve ter pelo menos 2 caracteres.' };
+    return { isValid: false, error: t('signup.nameMinChars') };
   }
   
-  // Comprimento máximo (30 caracteres)
   if (trimmedName.length > 30) {
-    return { isValid: false, error: 'O nome não pode ter mais de 30 caracteres.' };
+    return { isValid: false, error: t('signup.nameMaxChars') };
   }
   
-  // Deve começar com letra
   if (!/^[a-zA-ZÀ-ÿ]/.test(trimmedName)) {
-    return { isValid: false, error: 'O nome deve começar com uma letra.' };
+    return { isValid: false, error: t('signup.nameStartLetter') };
   }
   
-  // Apenas letras, espaços, hífens e apóstrofos permitidos
   if (!/^[a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ\s\-']*[a-zA-ZÀ-ÿ]$|^[a-zA-ZÀ-ÿ]$/.test(trimmedName)) {
-    return { isValid: false, error: 'O nome só pode conter letras, espaços, hífens e apóstrofos.' };
+    return { isValid: false, error: t('signup.nameOnlyLetters') };
   }
   
-  // Não permitir múltiplos espaços consecutivos
   if (/\s{2,}/.test(trimmedName)) {
-    return { isValid: false, error: 'O nome não pode ter espaços consecutivos.' };
+    return { isValid: false, error: t('signup.nameNoConsecutiveSpaces') };
   }
   
-  // Não permitir múltiplos hífens consecutivos
   if (/\-{2,}/.test(trimmedName)) {
-    return { isValid: false, error: 'O nome não pode ter hífens consecutivos.' };
+    return { isValid: false, error: t('signup.nameNoConsecutiveHyphens') };
   }
   
-  // Não permitir apenas números ou caracteres repetidos
   if (/^(.)\1+$/.test(trimmedName.replace(/\s/g, ''))) {
-    return { isValid: false, error: 'O nome não pode ser apenas caracteres repetidos.' };
+    return { isValid: false, error: t('signup.nameNoRepeated') };
   }
   
-  // Lista de palavras/padrões não permitidos
   const blockedPatterns = [
     /admin/i, /root/i, /system/i, /moderator/i, /staff/i,
     /support/i, /oficial/i, /official/i, /eyeweb/i,
@@ -71,7 +63,7 @@ function validateDisplayName(name: string): NameValidation {
   
   for (const pattern of blockedPatterns) {
     if (pattern.test(trimmedName)) {
-      return { isValid: false, error: 'Este nome não é permitido.' };
+      return { isValid: false, error: t('signup.nameNotAllowed') };
     }
   }
   
@@ -121,12 +113,14 @@ function EditNameModal({
   isOpen, 
   onClose, 
   currentName, 
-  onSave 
+  onSave,
+  t 
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   currentName: string;
   onSave: (name: string) => void;
+  t: (key: string) => string;
 }) {
   const [name, setName] = useState(currentName);
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +136,7 @@ function EditNameModal({
     e.preventDefault();
     
     // Validar nome
-    const validation = validateDisplayName(name);
+    const validation = validateDisplayName(name, t);
     if (!validation.isValid) {
       setError(validation.error);
       return;
@@ -162,7 +156,7 @@ function EditNameModal({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Editar nome</h3>
+          <h3>{t('profile.editName')}</h3>
           <button className="modal-close" onClick={onClose}>
             <i className="fa-solid fa-xmark"></i>
           </button>
@@ -173,7 +167,7 @@ function EditNameModal({
               type="text"
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="O teu nome"
+              placeholder={t('profile.namePlaceholder')}
               autoFocus
               maxLength={30}
             />
@@ -184,15 +178,15 @@ function EditNameModal({
               </div>
             )}
             <div className="name-hint">
-              <small>2-30 caracteres. Apenas letras, espaços e hífens.</small>
+              <small>{t('profile.nameHint')}</small>
             </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>
-              Cancelar
+              {t('profile.cancel')}
             </button>
             <button type="submit" className="btn btn-primary">
-              Guardar
+              {t('profile.save')}
             </button>
           </div>
         </form>
@@ -204,6 +198,7 @@ function EditNameModal({
 export default function PerfilPage() {
   const router = useRouter();
   const { user, profile, isAuthenticated, isAdmin, logout, loading, refreshProfile } = useAuth();
+  const { t } = useLanguage();
   
   const [authChecked, setAuthChecked] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -253,7 +248,7 @@ export default function PerfilPage() {
     if (!user) return;
     
     setIsEditNameOpen(false);
-    showProcessing('A atualizar nome...');
+    showProcessing(t('profile.updatingName'));
 
     try {
       const { error: updateError } = await supabase
@@ -272,7 +267,7 @@ export default function PerfilPage() {
       // Wait for loading animation
       setTimeout(() => {
         hideProcessing();
-        showToast('Nome atualizado!');
+        showToast(t('profile.nameUpdated'));
       }, 1500);
       
     } catch (err: any) {
@@ -306,7 +301,7 @@ export default function PerfilPage() {
       return;
     }
 
-    showProcessing('A atualizar foto...');
+    showProcessing(t('profile.updatingPhoto'));
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -345,7 +340,7 @@ export default function PerfilPage() {
       
       setTimeout(() => {
         hideProcessing();
-        showToast('Foto atualizada!');
+        showToast(t('profile.photoUpdated'));
       }, 1500);
       
     } catch (err: any) {
@@ -361,7 +356,7 @@ export default function PerfilPage() {
   const handleRemoveAvatar = async () => {
     if (!user) return;
 
-    showProcessing('A remover foto...');
+    showProcessing(t('profile.removingPhoto'));
 
     try {
       const { error: updateError } = await supabase
@@ -379,7 +374,7 @@ export default function PerfilPage() {
       
       setTimeout(() => {
         hideProcessing();
-        showToast('Foto removida!');
+        showToast(t('profile.photoRemoved'));
       }, 1500);
       
     } catch (err: any) {
@@ -393,7 +388,7 @@ export default function PerfilPage() {
       <div className="auth-container">
         <div className="auth-loading">
           <div className="spinner"></div>
-          <p>A carregar...</p>
+          <p>{t('profile.loading')}</p>
         </div>
       </div>
     );
@@ -423,6 +418,7 @@ export default function PerfilPage() {
         onClose={() => setIsEditNameOpen(false)}
         currentName={profile?.display_name || ''}
         onSave={handleSaveName}
+        t={t}
       />
       
       <div className="profile-container">
@@ -449,7 +445,7 @@ export default function PerfilPage() {
                       className="avatar-btn avatar-btn-edit"
                       onClick={handleAvatarClick}
                       disabled={isProcessing}
-                      title="Alterar foto"
+                      title={t('profile.changePhoto')}
                     >
                       <i className="fa-solid fa-pencil"></i>
                     </button>
@@ -458,7 +454,7 @@ export default function PerfilPage() {
                         className="avatar-btn avatar-btn-delete"
                         onClick={handleRemoveAvatar}
                         disabled={isProcessing}
-                        title="Remover foto"
+                        title={t('profile.removePhoto')}
                       >
                         <i className="fa-solid fa-trash"></i>
                       </button>
@@ -480,7 +476,7 @@ export default function PerfilPage() {
                 <button 
                   className="name-edit-btn"
                   onClick={() => setIsEditNameOpen(true)}
-                  title="Editar nome"
+                  title={t('profile.editName')}
                 >
                   <i className="fa-solid fa-pencil"></i>
                 </button>
@@ -495,7 +491,7 @@ export default function PerfilPage() {
             <div className="admin-panel-link">
               <Link href="/admin" className="btn btn-admin">
                 <i className="fa-solid fa-gauge-high"></i>
-                <span>Ir para Painel Admin</span>
+                <span>{t('profile.goToAdmin')}</span>
                 <i className="fa-solid fa-arrow-right"></i>
               </Link>
             </div>
@@ -508,7 +504,7 @@ export default function PerfilPage() {
               onClick={handleLogout}
             >
               <i className="fa-solid fa-right-from-bracket"></i>
-              Terminar sessão
+              {t('profile.logout')}
             </button>
           </div>
         </div>

@@ -421,7 +421,7 @@ async def check_ssl(url: str) -> dict:
 # GROQ AI ANALYSIS
 # ===========================================
 
-async def get_ai_opinion(url: str, scan_results: dict) -> Optional[str]:
+async def get_ai_opinion(url: str, scan_results: dict, lang: str = "pt") -> Optional[str]:
     """
     Obtém opinião da IA (Groq/Llama 3) sobre o URL.
     
@@ -444,18 +444,32 @@ async def get_ai_opinion(url: str, scan_results: dict) -> Optional[str]:
     ssl_result = scan_results.get("ssl_check", {})
     
     # Construir descrição do SSL
-    ssl_desc = "Não verificado"
+    ssl_desc = "Não verificado" if lang == "pt" else "Not checked"
     if ssl_result.get("checked"):
         if not ssl_result.get("has_ssl"):
-            ssl_desc = "⚠️ Site não usa HTTPS"
+            ssl_desc = "⚠️ Site não usa HTTPS" if lang == "pt" else "⚠️ Site does not use HTTPS"
         elif ssl_result.get("status") == "malicious":
-            ssl_desc = "❌ Certificado inválido ou não confiável"
+            ssl_desc = "❌ Certificado inválido ou não confiável" if lang == "pt" else "❌ Invalid or untrusted certificate"
         elif ssl_result.get("status") == "suspicious":
-            ssl_desc = f"⚠️ {ssl_result.get('reason', 'Problema com certificado')}"
+            ssl_desc = f"⚠️ {ssl_result.get('reason', 'Problema com certificado' if lang == 'pt' else 'Certificate issue')}"
         else:
-            ssl_desc = f"✅ Válido (emitido por {ssl_result.get('issuer', 'desconhecido')})"
+            ssl_desc = f"✅ Válido (emitido por {ssl_result.get('issuer', 'desconhecido')})" if lang == "pt" else f"✅ Valid (issued by {ssl_result.get('issuer', 'unknown')})"
     
-    prompt = f"""URL: {url}
+    if lang == "en":
+        prompt = f"""URL: {url}
+
+Results:
+- Google Safe Browsing: {"THREAT DETECTED: " + str(google_result.get("threats")) if google_result.get("is_threat") else "OK" if google_result.get("checked") else "Not checked"}
+- SSL: {ssl_desc}
+
+Classification:
+- Google SB detected threat → say "The URL is DANGEROUS because..."
+- SSL issues (but Google OK) → say "The URL is SUSPICIOUS because..."
+- Both OK → say "The URL is SAFE because..."
+
+Respond DIRECTLY with "The URL is [SAFE/SUSPICIOUS/DANGEROUS] because..." in English (maximum 2 sentences)."""
+    else:
+        prompt = f"""URL: {url}
 
 Resultados:
 - Google Safe Browsing: {"AMEAÇA DETECTADA: " + str(google_result.get("threats")) if google_result.get("is_threat") else "OK" if google_result.get("checked") else "Não verificado"}
@@ -473,7 +487,7 @@ Responde DIRETAMENTE com "O URL é [SEGURO/SUSPEITO/PERIGOSO] porque..." em Port
         "messages": [
             {
                 "role": "system",
-                "content": "És um especialista em cibersegurança. Analisa URLs e dá pareceres concisos sobre a sua segurança. Responde sempre em Português de Portugal."
+                "content": "You are a cybersecurity expert. Analyze URLs and give concise opinions on their security. Always respond in English." if lang == "en" else "És um especialista em cibersegurança. Analisa URLs e dá pareceres concisos sobre a sua segurança. Responde sempre em Português de Portugal."
             },
             {
                 "role": "user",
@@ -507,7 +521,7 @@ Responde DIRETAMENTE com "O URL é [SEGURO/SUSPEITO/PERIGOSO] porque..." em Port
 # MAIN CHECK FUNCTION
 # ===========================================
 
-async def check_url(url: str, force_recheck: bool = False) -> dict:
+async def check_url(url: str, force_recheck: bool = False, lang: str = "pt") -> dict:
     """
     Verifica segurança de um URL.
     
@@ -537,6 +551,14 @@ async def check_url(url: str, force_recheck: bool = False) -> dict:
             last_check = datetime.fromisoformat(cached["last_check"].replace("Z", "+00:00"))
             age_seconds = (datetime.now(timezone.utc) - last_check).total_seconds()
             
+            # Se o idioma pedido não é PT, regenerar opinião da IA no idioma correto
+            ai_opinion = cached.get("ai_opinion")
+            if lang != "pt" and ai_opinion:
+                try:
+                    ai_opinion = await get_ai_opinion(url, cached.get("threat_details", {}), lang)
+                except Exception:
+                    pass  # Fallback to cached PT opinion
+            
             # Cache fresco (< 1 hora) → retorna direto
             if age_seconds < settings.URL_CACHE_FRESH_SECONDS:
                 logger.info(f"✅ Fresh cache hit ({age_seconds:.0f}s old)")
@@ -544,7 +566,7 @@ async def check_url(url: str, force_recheck: bool = False) -> dict:
                     "url": url,
                     "url_hash": url_hash,
                     "status": cached["status"],
-                    "ai_opinion": cached.get("ai_opinion"),
+                    "ai_opinion": ai_opinion,
                     "threat_details": cached.get("threat_details", {}),
                     "last_check": cached["last_check"],
                     "from_cache": True,
@@ -562,7 +584,7 @@ async def check_url(url: str, force_recheck: bool = False) -> dict:
                     "url": url,
                     "url_hash": url_hash,
                     "status": cached["status"],
-                    "ai_opinion": cached.get("ai_opinion"),
+                    "ai_opinion": ai_opinion,
                     "threat_details": cached.get("threat_details", {}),
                     "last_check": cached["last_check"],
                     "from_cache": True,
@@ -571,10 +593,10 @@ async def check_url(url: str, force_recheck: bool = False) -> dict:
                 }
     
     # 2. Fazer verificação completa
-    return await _perform_full_check(url, url_hash)
+    return await _perform_full_check(url, url_hash, lang)
 
 
-async def _perform_full_check(url: str, url_hash: str) -> dict:
+async def _perform_full_check(url: str, url_hash: str, lang: str = "pt") -> dict:
     """Executa verificação completa do URL."""
     
     logger.info(f"🔄 Performing full check for {url[:50]}...")
@@ -609,23 +631,31 @@ async def _perform_full_check(url: str, url_hash: str) -> dict:
     # - AMBOS Seguros → Seguro
     status = _determine_status(google_result, ssl_result)
     
-    # Obter opinião da IA (apenas explica o que os checkers dizem)
-    ai_opinion = await get_ai_opinion(url, scan_results)
+    # Obter opinião da IA (sempre gerar e guardar em PT para cache)
+    ai_opinion_pt = await get_ai_opinion(url, scan_results, "pt")
     
-    # Guardar em cache
+    # Guardar em cache (sempre em PT — idioma base)
     await save_to_cache(
         url_hash=url_hash,
         original_url=url,
         status=status,
-        ai_opinion=ai_opinion,
+        ai_opinion=ai_opinion_pt,
         threat_details=scan_results
     )
+    
+    # Se o idioma pedido não é PT, gerar opinião traduzida para retornar
+    ai_opinion_out = ai_opinion_pt
+    if lang != "pt":
+        try:
+            ai_opinion_out = await get_ai_opinion(url, scan_results, lang)
+        except Exception:
+            pass  # Fallback to PT opinion
     
     return {
         "url": url,
         "url_hash": url_hash,
         "status": status.value,
-        "ai_opinion": ai_opinion,
+        "ai_opinion": ai_opinion_out,
         "threat_details": scan_results,
         "last_check": datetime.now(timezone.utc).isoformat(),
         "from_cache": False

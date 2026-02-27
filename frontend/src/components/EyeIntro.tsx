@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface EyeIntroProps {
   onComplete: () => void;
@@ -23,6 +24,7 @@ export default function EyeIntro({ onComplete }: EyeIntroProps) {
   const [clicked, setClicked] = useState(false);
   const [hidden, setHidden] = useState(true); // Começa escondido
   const [pupilStyle, setPupilStyle] = useState({ transform: 'translate(-50%, -50%)' });
+  const { t } = useLanguage();
 
   // Verificar se já foi visto nesta sessão - apenas no cliente
   useEffect(() => {
@@ -90,7 +92,7 @@ export default function EyeIntro({ onComplete }: EyeIntroProps) {
       <div 
         className={`eye-container ${clicked ? 'clicked' : ''}`}
         onClick={handleClick}
-        title="Clica para entrar"
+        title={t('eye.clickToEnter')}
       >
         <div className="eye">
           <div className="pupil" style={pupilStyle}></div>

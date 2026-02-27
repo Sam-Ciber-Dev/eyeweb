@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { checkUrlWithAI, UrlCheckResult } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function UrlChecker() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UrlCheckResult | null>(null);
+  const { t, lang } = useLanguage();
   
   // Estados para animação sequencial
   const [showGoogleLoading, setShowGoogleLoading] = useState(false);
@@ -23,12 +25,12 @@ export default function UrlChecker() {
 
   const sanitizeAndValidateUrl = (raw: string): { valid: boolean; cleaned: string; error?: string } => {
     let input = raw.trim();
-    if (!input) return { valid: false, cleaned: '', error: 'URL vazio' };
+    if (!input) return { valid: false, cleaned: '', error: t('url.empty') };
     
     // Bloquear protocolos perigosos
     const dangerousProtocols = /^(javascript|data|vbscript|file|ftp|blob|about|chrome|moz-extension):/i;
     if (dangerousProtocols.test(input)) {
-      return { valid: false, cleaned: '', error: 'Protocolo nao permitido. Usa http:// ou https://' };
+      return { valid: false, cleaned: '', error: t('url.protocolNotAllowed') };
     }
     
     // Corrigir protocolos malformados comuns (ht+ps, htps, htp, etc.)
@@ -39,7 +41,7 @@ export default function UrlChecker() {
     
     // Remover esquemas desconhecidos (qualquer coisa que nao seja http/https)
     if (input.includes('://') && !input.match(/^https?:\/\//i)) {
-      return { valid: false, cleaned: '', error: 'Protocolo invalido. Usa http:// ou https://' };
+      return { valid: false, cleaned: '', error: t('url.protocolInvalid') };
     }
     
     // Se nao tem protocolo, adicionar https://
@@ -65,24 +67,24 @@ export default function UrlChecker() {
       const parsed = new URL(input);
       // Deve ter hostname valido
       if (!parsed.hostname || parsed.hostname.length < 1) {
-        return { valid: false, cleaned: '', error: 'URL invalido: sem dominio' };
+        return { valid: false, cleaned: '', error: t('url.noDomain') };
       }
       // Hostname deve ter pelo menos um ponto (dominio.tld) ou ser localhost
       if (!parsed.hostname.includes('.') && parsed.hostname !== 'localhost') {
-        return { valid: false, cleaned: '', error: 'URL invalido: dominio incompleto' };
+        return { valid: false, cleaned: '', error: t('url.incompleteDomain') };
       }
       // Bloquear IPs privados (127.x, 192.168.x, 10.x, 169.254.x, 0.0.0.0)
       const privateIpRegex = /^(127\.|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|0\.0\.0\.0|localhost)/;
       if (privateIpRegex.test(parsed.hostname)) {
-        return { valid: false, cleaned: '', error: 'Nao e possivel verificar enderecos locais/privados' };
+        return { valid: false, cleaned: '', error: t('url.localAddress') };
       }
     } catch {
-      return { valid: false, cleaned: '', error: 'URL invalido. Verifica a formatacao.' };
+      return { valid: false, cleaned: '', error: t('url.badFormat') };
     }
     
     // Limitar tamanho
     if (input.length > 2048) {
-      return { valid: false, cleaned: '', error: 'URL demasiado longo (maximo 2048 caracteres)' };
+      return { valid: false, cleaned: '', error: t('url.tooLong') };
     }
     
     return { valid: true, cleaned: input };
@@ -96,7 +98,7 @@ export default function UrlChecker() {
     // Validar e sanitizar URL
     const validation = sanitizeAndValidateUrl(url);
     if (!validation.valid) {
-      setError(validation.error || 'URL invalido');
+      setError(validation.error || t('url.invalid'));
       return;
     }
     
@@ -116,7 +118,7 @@ export default function UrlChecker() {
       // Iniciar animação do Google
       setShowGoogleLoading(true);
       
-      const data = await checkUrlWithAI(validation.cleaned);
+      const data = await checkUrlWithAI(validation.cleaned, false, lang);
       setResult(data);
       
       // Sequência de animações
@@ -143,7 +145,7 @@ export default function UrlChecker() {
       }, 4500);
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao verificar URL');
+      setError(err instanceof Error ? err.message : t('url.checkError'));
       setShowGoogleLoading(false);
     } finally {
       setLoading(false);
@@ -190,10 +192,10 @@ export default function UrlChecker() {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'safe': return 'Seguro';
-      case 'suspicious': return 'Suspeito';
-      case 'malicious': return 'Perigoso';
-      default: return 'Desconhecido';
+      case 'safe': return t('url.safe');
+      case 'suspicious': return t('url.suspicious');
+      case 'malicious': return t('url.malicious');
+      default: return t('url.unknown');
     }
   };
 
@@ -207,7 +209,7 @@ export default function UrlChecker() {
     return result.threat_details.ssl_check.status || 'unknown';
   };
 
-  const tooltipText = "Quando verificas um URL, guardamos o resultado para que futuras verificações sejam instantâneas. Após 1 mês, o URL é automaticamente re-verificado para garantir informação atualizada.";
+  const tooltipText = t('url.cacheTooltip');
 
   return (
     <div className="card">
@@ -216,7 +218,7 @@ export default function UrlChecker() {
           <input
             type="text"
             className="input"
-            placeholder="Introduz um URL para verificar..."
+            placeholder={t('url.placeholder')}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={loading}
@@ -224,14 +226,14 @@ export default function UrlChecker() {
           />
         </div>
         <button type="submit" className="btn" disabled={!url.trim() || loading}>
-          {loading ? '🔄 A verificar...' : 'Verificar URL'}
+          {loading ? t('url.checking') : t('url.check')}
         </button>
       </form>
 
       {error && (
         <div className="result-container">
           <div className="no-breaches" style={{ borderColor: 'var(--danger)' }}>
-            <span className="status-badge danger">❌ Erro</span>
+            <span className="status-badge danger">{t('url.error')}</span>
             <p>{error}</p>
           </div>
         </div>
@@ -251,7 +253,7 @@ export default function UrlChecker() {
               color: 'var(--text)',
               fontWeight: '600'
             }}>
-              Verificação de URL
+              {t('url.title')}
             </h3>
 
             {/* Google Safe Browsing */}
@@ -317,7 +319,7 @@ export default function UrlChecker() {
                 </span>
               )}
               {!showSslLoading && !showSslResult && showGoogleResult && (
-                <span style={{ color: 'var(--gray)', fontSize: '0.9rem' }}>A aguardar...</span>
+                <span style={{ color: 'var(--gray)', fontSize: '0.9rem' }}>{t('url.waiting')}</span>
               )}
             </div>
 
@@ -363,7 +365,7 @@ export default function UrlChecker() {
                   color: 'var(--primary)',
                   fontSize: '0.9rem'
                 }}>
-                  Agente IA
+                  {t('url.aiAgent')}
                 </p>
                 <p style={{ 
                   margin: 0, 
@@ -397,8 +399,8 @@ export default function UrlChecker() {
                   color: 'var(--gray)'
                 }}>
                   {result.from_cache 
-                    ? 'URL verificado anteriormente pelos serviços do Eye Web' 
-                    : 'URL verificado pelo Eye Web'}
+                    ? t('url.cachedPreviously') 
+                    : t('url.cached')}
                 </span>
                 <span 
                   style={{ 

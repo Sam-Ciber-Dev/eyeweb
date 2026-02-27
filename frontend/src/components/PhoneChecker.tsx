@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Select, { SingleValue, StylesConfig, OptionProps, SingleValueProps, components } from 'react-select';
 import { checkPhoneBreach, BreachInfo, COUNTRY_CODES, CountryCode } from '@/lib/api';
 import BreachResults from './BreachResults';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // Tipo para as opções do react-select
 interface CountryOption {
@@ -215,6 +216,7 @@ const customStyles: StylesConfig<CountryOption, false> = {
 
 export default function PhoneChecker() {
   const [phone, setPhone] = useState('');
+  const { t } = useLanguage();
   
   // Nenhum país selecionado por defeito
   const [selectedCountry, setSelectedCountry] = useState<CountryCode | null>(null);
@@ -282,7 +284,7 @@ export default function PhoneChecker() {
       });
     } catch (err) {
       console.error('Error checking phone:', err);
-      setError('Erro ao verificar. Tenta novamente mais tarde.');
+      setError(t('phone.error'));
     } finally {
       setLoading(false);
     }
@@ -304,8 +306,8 @@ export default function PhoneChecker() {
                 SingleValue: CountrySingleValue,
               }}
               isSearchable={true}
-              placeholder="País"
-              noOptionsMessage={() => "Nenhum país encontrado"}
+              placeholder={t('phone.country')}
+              noOptionsMessage={() => t('phone.noCountry')}
               hideSelectedOptions={true}
               closeMenuOnSelect={true}
               blurInputOnSelect={true}
@@ -324,7 +326,7 @@ export default function PhoneChecker() {
           <input
             type="tel"
             className="phone-input"
-            placeholder={selectedCountry ? `${selectedCountry.minDigits} dígitos` : 'Seleciona um país'}
+            placeholder={selectedCountry ? `${selectedCountry.minDigits} ${t('phone.digits')}` : t('phone.selectCountry')}
             value={phone}
             onChange={handlePhoneChange}
             maxLength={selectedCountry?.maxDigits || 15}
@@ -339,11 +341,11 @@ export default function PhoneChecker() {
               <>
                 {isValidLength ? '✓' : '✗'} {phone.length}/{selectedCountry.minDigits === selectedCountry.maxDigits 
                   ? selectedCountry.minDigits 
-                  : `${selectedCountry.minDigits}-${selectedCountry.maxDigits}`} dígitos
+                  : `${selectedCountry.minDigits}-${selectedCountry.maxDigits}`} {t('phone.digits')}
               </>
             )}
           </span>
-          <span className="country-name">{selectedCountry?.name || 'Nenhum país selecionado'}</span>
+          <span className="country-name">{selectedCountry?.name || t('phone.noCountrySelected')}</span>
         </div>
         
         <button 
@@ -351,14 +353,14 @@ export default function PhoneChecker() {
           className="btn" 
           disabled={loading || !phone.trim() || !isValidLength || !selectedCountry}
         >
-          {loading ? 'A verificar...' : 'Verificar Número'}
+          {loading ? t('phone.checking') : t('phone.check')}
         </button>
       </form>
 
       {loading && (
         <div className="loading">
           <div className="spinner"></div>
-          <span>A procurar em fugas de dados...</span>
+          <span>{t('phone.searching')}</span>
         </div>
       )}
 

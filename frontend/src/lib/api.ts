@@ -8,6 +8,13 @@
  * - K-Anonymity para ambos os tipos
  */
 
+import { translations, type Lang } from '@/i18n/translations';
+
+/** Lightweight translate helper for non-React contexts */
+function tr(key: string, lang: Lang = 'pt'): string {
+  return translations[lang]?.[key] ?? translations['pt']?.[key] ?? key;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // ===========================================
@@ -461,7 +468,7 @@ export async function checkPhoneBreach(phone: string, countryCode: string): Prom
  * Verifica a força de uma password (verificação local)
  * Não envia para nenhum servidor
  */
-export function checkPasswordStrength(password: string): {
+export function checkPasswordStrength(password: string, lang: Lang = 'pt'): {
   score: number;
   feedback: string[];
   level: 'weak' | 'medium' | 'strong' | 'very-strong';
@@ -473,23 +480,23 @@ export function checkPasswordStrength(password: string): {
   if (password.length >= 8) score += 1;
   if (password.length >= 12) score += 1;
   if (password.length >= 16) score += 1;
-  if (password.length < 8) feedback.push('Usa pelo menos 8 caracteres');
+  if (password.length < 8) feedback.push(tr('api.pwd.minChars', lang));
   
   // Letras minúsculas
   if (/[a-z]/.test(password)) score += 1;
-  else feedback.push('Adiciona letras minúsculas');
+  else feedback.push(tr('api.pwd.lowercase', lang));
   
   // Letras maiúsculas
   if (/[A-Z]/.test(password)) score += 1;
-  else feedback.push('Adiciona letras maiúsculas');
+  else feedback.push(tr('api.pwd.uppercase', lang));
   
   // Números
   if (/[0-9]/.test(password)) score += 1;
-  else feedback.push('Adiciona números');
+  else feedback.push(tr('api.pwd.numbers', lang));
   
   // Caracteres especiais
   if (/[^A-Za-z0-9]/.test(password)) score += 2;
-  else feedback.push('Adiciona caracteres especiais (!@#$%...)');
+  else feedback.push(tr('api.pwd.special', lang));
   
   // Padrões comuns (penalização)
   const commonPatterns = [
@@ -500,7 +507,7 @@ export function checkPasswordStrength(password: string): {
   for (const pattern of commonPatterns) {
     if (pattern.test(password)) {
       score -= 1;
-      feedback.push('Evita padrões comuns');
+      feedback.push(tr('api.pwd.patterns', lang));
       break;
     }
   }
@@ -599,7 +606,7 @@ export interface UrlCheckResult {
  * Verifica a segurança de um URL usando a API com IA
  * Utiliza Google Safe Browsing, SSL Check e Groq AI (Llama 3)
  */
-export async function checkUrlWithAI(url: string, forceRecheck: boolean = false): Promise<UrlCheckResult> {
+export async function checkUrlWithAI(url: string, forceRecheck: boolean = false, lang: Lang = 'pt'): Promise<UrlCheckResult> {
   const response = await fetch(`${API_BASE_URL}/api/v1/urls/check`, {
     method: 'POST',
     headers: {
@@ -608,12 +615,13 @@ export async function checkUrlWithAI(url: string, forceRecheck: boolean = false)
     body: JSON.stringify({
       url: url,
       force_recheck: forceRecheck,
+      lang: lang,
     }),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
-    throw new Error(error.detail || `Erro ${response.status}`);
+    const error = await response.json().catch(() => ({ detail: tr('api.url.unknownError', lang) }));
+    throw new Error(error.detail || `${tr('api.url.unknownError', lang)} ${response.status}`);
   }
 
   return response.json();
@@ -623,7 +631,7 @@ export async function checkUrlWithAI(url: string, forceRecheck: boolean = false)
  * Verifica se um URL parece suspeito (verificação básica local)
  * NOTA: Esta função é mantida para verificação offline/fallback
  */
-export function checkUrlSecurity(url: string): {
+export function checkUrlSecurity(url: string, lang: Lang = 'pt'): {
   safe: boolean;
   warnings: string[];
   details: { https: boolean; suspiciousTLD: boolean; ipAddress: boolean };
@@ -632,7 +640,6 @@ export function checkUrlSecurity(url: string): {
   
   let parsedUrl: URL;
   try {
-    // Adicionar protocolo se não existir
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
@@ -640,7 +647,7 @@ export function checkUrlSecurity(url: string): {
   } catch {
     return {
       safe: false,
-      warnings: ['URL inválido'],
+      warnings: [tr('api.url.invalid', lang)],
       details: { https: false, suspiciousTLD: false, ipAddress: false },
     };
   }
@@ -648,32 +655,32 @@ export function checkUrlSecurity(url: string): {
   // Verificar HTTPS
   const https = parsedUrl.protocol === 'https:';
   if (!https) {
-    warnings.push('Site não usa HTTPS (conexão não encriptada)');
+    warnings.push(tr('api.url.noHttps', lang));
   }
   
   // Verificar TLDs suspeitos
   const suspiciousTLDs = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.click', '.link'];
   const suspiciousTLD = suspiciousTLDs.some(tld => parsedUrl.hostname.endsWith(tld));
   if (suspiciousTLD) {
-    warnings.push('TLD frequentemente usado em phishing');
+    warnings.push(tr('api.url.phishingTld', lang));
   }
   
   // Verificar se é IP direto
   const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
   const ipAddress = ipPattern.test(parsedUrl.hostname);
   if (ipAddress) {
-    warnings.push('URL usa endereço IP direto (suspeito)');
+    warnings.push(tr('api.url.directIp', lang));
   }
   
   // Verificar caracteres suspeitos no domínio
   if (/[^\w\-.]/.test(parsedUrl.hostname)) {
-    warnings.push('Domínio contém caracteres incomuns');
+    warnings.push(tr('api.url.unusualChars', lang));
   }
   
   // Verificar subdomínios excessivos
   const subdomains = parsedUrl.hostname.split('.').length - 2;
   if (subdomains > 3) {
-    warnings.push('Muitos subdomínios (possível tentativa de engano)');
+    warnings.push(tr('api.url.tooManySubdomains', lang));
   }
   
   return {

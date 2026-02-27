@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { isAdminEmail, supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -27,7 +28,7 @@ export default function LoginPage() {
       <div className="auth-container">
         <div className="auth-loading">
           <div className="spinner"></div>
-          <p>A carregar...</p>
+          <p>Loading...</p>
         </div>
       </div>
     }>
@@ -40,6 +41,7 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { loginWithGoogle, isAuthenticated, isAdmin, loading } = useAuth();
+  const { t } = useLanguage();
   
   // Estado do passo atual
   const [step, setStep] = useState<LoginStep>('credentials');
@@ -163,15 +165,15 @@ function LoginContent() {
   useEffect(() => {
     const errorParam = searchParams.get('error');
     if (errorParam === 'admin_google_blocked') {
-      setError('Administradores não podem usar login via Google. Por favor, usa as credenciais manuais.');
+      setError(t('login.adminGoogleBlocked'));
     } else if (errorParam === 'account_banned') {
-      setError('A tua conta foi suspensa. Contacta o suporte se achares que é um erro.');
+      setError(t('login.suspended'));
     } else if (errorParam === 'auth_failed') {
-      setError('Erro na autenticação. Por favor, tenta novamente.');
+      setError(t('login.authError'));
     } else if (errorParam === 'no_account') {
-      setError('Esta conta Google não tem registo no EyeWeb. Cria uma conta primeiro.');
+      setError(t('login.googleNotRegistered'));
     } else if (errorParam === 'account_exists') {
-      setError('Esta conta Google já tem registo. Faz login em vez de criar conta.');
+      setError(t('login.googleAlreadyRegistered'));
     }
   }, [searchParams]);
 
@@ -246,7 +248,7 @@ function LoginContent() {
 
     // Verificar se temos token do captcha (frontend-only)
     if (!captchaToken) {
-      setError('Por favor, completa a verificação de segurança.');
+      setError(t('login.completeSecurity'));
       return;
     }
 
@@ -288,7 +290,7 @@ function LoginContent() {
         if (emailExists) {
           // O email existe mas as credenciais estão erradas
           setShowLoginError(true);
-          throw new Error('Email ou password incorretos.');
+          throw new Error(t('login.wrongCredentials'));
         } else {
           // Email não existe de todo
           setShowNoAccountError(true);
@@ -338,9 +340,9 @@ function LoginContent() {
     } catch (err: any) {
       console.error('Login error:', err);
       if (err.message?.includes('rate limit')) {
-        setError('Muitos emails enviados. Por favor, aguarda alguns minutos e tenta novamente.');
+        setError(t('login.tooManyEmails'));
       } else {
-        setError(err.message || 'Erro ao fazer login. Verifica as credenciais.');
+        setError(err.message || t('login.loginError'));
       }
     } finally {
       setIsLoading(false);
@@ -352,7 +354,7 @@ function LoginContent() {
     e.preventDefault();
     
     if (otpCode.length !== 6) {
-      setError('O código deve ter 6 dígitos.');
+      setError(t('login.code6digits'));
       return;
     }
     
@@ -368,9 +370,9 @@ function LoginContent() {
       
       if (verifyError) {
         if (verifyError.message.includes('Token has expired')) {
-          throw new Error('Código expirado. Por favor, pede um novo código.');
+          throw new Error(t('login.codeExpired'));
         }
-        throw new Error('Código incorreto. Tenta novamente.');
+        throw new Error(t('login.codeIncorrect'));
       }
       
       // Login completo! Redirecionar
@@ -378,7 +380,7 @@ function LoginContent() {
       
     } catch (err: any) {
       console.error('Verify OTP error:', err);
-      setError(err.message || 'Código incorreto.');
+      setError(err.message || t('login.codeWrong'));
       setIsLoading(false);
     }
   };
@@ -408,7 +410,7 @@ function LoginContent() {
       setResendCooldown(60);
       setOtpCode('');
     } catch (err: any) {
-      setError('Erro ao reenviar código. Tenta novamente.');
+      setError(t('login.resendError'));
     } finally {
       setIsLoading(false);
     }
@@ -470,7 +472,7 @@ function LoginContent() {
     
     // Verificar se temos token do captcha (frontend-only)
     if (!captchaToken) {
-      setError('Por favor, completa a verificação de segurança.');
+      setError(t('login.completeSecurity'));
       return;
     }
 
@@ -483,7 +485,7 @@ function LoginContent() {
     try {
       // Validar email
       if (!forgotEmail || !forgotEmail.includes('@')) {
-        throw new Error('Por favor, insere um email válido.');
+        throw new Error(t('login.invalidEmail'));
       }
       
       // Enviar código de recuperação via Supabase
@@ -503,7 +505,7 @@ function LoginContent() {
 
     } catch (err: any) {
       console.error('Recovery email error:', err);
-      setError(err.message || 'Erro ao enviar email de recuperação.');
+      setError(err.message || t('login.recoveryEmailError'));
     } finally {
       setIsLoading(false);
     }
@@ -534,9 +536,9 @@ function LoginContent() {
 
       if (verifyError) {
         if (verifyError.message.includes('Token has expired')) {
-          throw new Error('Código expirado. Por favor, pede um novo código.');
+          throw new Error(t('login.codeExpired'));
         }
-        throw new Error('Código incorreto. Verifica e tenta novamente.');
+        throw new Error(t('login.codeIncorrectVerify'));
       }
 
       // Guardar a sessão completa para poder atualizar a password
@@ -546,7 +548,7 @@ function LoginContent() {
           refresh_token: data.session.refresh_token,
         });
       } else {
-        throw new Error('Erro ao obter token de recuperação.');
+        throw new Error(t('login.recoveryTokenError'));
       }
 
       // Código válido! A sessão só existe no cliente temporário (não persistida)
@@ -558,7 +560,7 @@ function LoginContent() {
 
     } catch (err: any) {
       console.error('Verify recovery code error:', err);
-      setError(err.message || 'Código incorreto.');
+      setError(err.message || t('login.codeWrong'));
     } finally {
       setIsLoading(false);
     }
@@ -571,17 +573,17 @@ function LoginContent() {
 
     // Validações
     if (!isPasswordValid()) {
-      setError('A password não cumpre os requisitos mínimos.');
+      setError(t('login.passwordRequirements'));
       return;
     }
 
     if (newPassword !== confirmNewPassword) {
-      setError('As passwords não coincidem.');
+      setError(t('login.passwordMismatch'));
       return;
     }
 
     if (!recoverySession) {
-      setError('Sessão de recuperação expirada. Por favor, recomeça o processo.');
+      setError(t('login.recoveryExpired'));
       setStep('forgot-email');
       return;
     }
@@ -616,7 +618,7 @@ function LoginContent() {
 
       // Voltar ao login com mensagem de sucesso
       setStep('credentials');
-      setSuccessMessage('Password alterada com sucesso! Faz login com a nova password.');
+      setSuccessMessage(t('login.passwordChanged'));
       setPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
@@ -625,7 +627,7 @@ function LoginContent() {
 
     } catch (err: any) {
       console.error('Update password error:', err);
-      setError(err.message || 'Erro ao atualizar password.');
+      setError(err.message || t('login.passwordUpdateError'));
     } finally {
       setIsLoading(false);
     }
@@ -648,7 +650,7 @@ function LoginContent() {
       setResendCooldown(60);
       setForgotCode('');
     } catch (err: any) {
-      setError('Erro ao reenviar código. Tenta novamente.');
+      setError(t('login.resendError'));
     } finally {
       setIsLoading(false);
     }
@@ -675,7 +677,7 @@ function LoginContent() {
 
   const handleGoogleLogin = async () => {
     if (isAdminLogin) {
-      setError('Administradores devem usar credenciais manuais por segurança.');
+      setError(t('login.adminManualOnly'));
       return;
     }
 
@@ -686,7 +688,7 @@ function LoginContent() {
       await loginWithGoogle();
     } catch (err: any) {
       console.error('Google login error:', err);
-      setError(err.message || 'Erro ao fazer login com Google.');
+      setError(err.message || t('login.googleError'));
       setIsLoading(false);
     }
   };
@@ -696,7 +698,7 @@ function LoginContent() {
       <div className="auth-container">
         <div className="auth-loading">
           <div className="spinner"></div>
-          <p>A carregar...</p>
+          <p>{t('login.loading')}</p>
         </div>
       </div>
     );
@@ -739,23 +741,23 @@ function LoginContent() {
                 </>
               ) : step === 'verification' ? (
                 <>
-                  <h1>Verificação de Segurança</h1>
-                  <p>Confirma o teu login através do email</p>
+                  <h1>{t('login.securityVerification')}</h1>
+                  <p>{t('login.confirmLogin')}</p>
                 </>
               ) : step === 'forgot-email' ? (
                 <>
-                  <h1>Recuperar Password</h1>
-                  <p>Insere o teu email para receber um código</p>
+                  <h1>{t('login.recoverPassword')}</h1>
+                  <p>{t('login.enterEmailForCode')}</p>
                 </>
               ) : step === 'forgot-code' ? (
                 <>
-                  <h1>Verificar Código</h1>
-                  <p>Insere o código enviado para o teu email</p>
+                  <h1>{t('login.verifyCode')}</h1>
+                  <p>{t('login.enterCodeSent')}</p>
                 </>
               ) : (
                 <>
-                  <h1>Nova Password</h1>
-                  <p>Cria uma nova password segura</p>
+                  <h1>{t('login.newPassword')}</h1>
+                  <p>{t('login.createNewPassword')}</p>
                 </>
               )}
             </motion.div>
@@ -839,24 +841,24 @@ function LoginContent() {
               {/* No Account Error - quando o email não existe */}
               {showNoAccountError && (
                 <div className="no-account-error">
-                  <span>Este e-mail não tem uma conta criada. </span>
+                  <span>{t('login.noAccount')}</span>
                   <Link href="/signup" className="create-account-link">
-                    Clique aqui
+                    {t('login.clickHere')}
                   </Link>
-                  <span> para criar uma.</span>
+                  <span>{t('login.toCreateOne')}</span>
                 </div>
               )}
 
               {/* Forgot Password Link - aparece quando há erro de login */}
               {showLoginError && (
                 <div className="forgot-password-link">
-                  <span>Esqueceste a tua password? </span>
+                  <span>{t('login.forgotPassword')}</span>
                   <button 
                     type="button" 
                     onClick={handleForgotPassword}
                     className="forgot-link-btn"
                   >
-                    Clica aqui
+                    {t('login.clickHere2')}
                   </button>
                 </div>
               )}
@@ -868,7 +870,7 @@ function LoginContent() {
                     <div className="turnstile-skeleton-icon">
                       <i className="fa-solid fa-shield-halved fa-beat-fade"></i>
                     </div>
-                    <span>A verificar segurança...</span>
+                    <span>{t('login.verifyingSecurity')}</span>
                   </div>
                 )}
                 <div style={{ opacity: captchaLoading ? 0 : 1, transition: 'opacity 0.3s' }}>
@@ -897,7 +899,7 @@ function LoginContent() {
                       }}
                     />
                   ) : (
-                    <p style={{ color: 'red', fontSize: '12px' }}>Turnstile Site Key não configurada</p>
+                    <p style={{ color: 'red', fontSize: '12px' }}>{t('login.turnstileNotConfigured')}</p>
                   )}
                 </div>
               </div>
@@ -911,10 +913,10 @@ function LoginContent() {
                 {isLoading ? (
                   <>
                     <i className="fa-solid fa-spinner fa-spin"></i>
-                    <span>A verificar...</span>
+                    <span>{t('login.verifying')}</span>
                   </>
                 ) : (
-                  'Continuar'
+                  t('login.continue')
                 )}
               </button>
             </form>
@@ -923,7 +925,7 @@ function LoginContent() {
             {!isAdminLogin && (
               <>
                 <div className="auth-divider">
-                  <span>ou</span>
+                  <span>{t('login.or')}</span>
                 </div>
 
                 {/* Google Login */}
@@ -939,7 +941,7 @@ function LoginContent() {
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
-                  <span>Continuar com Google</span>
+                  <span>{t('login.continueWithGoogle')}</span>
                 </button>
               </>
             )}
@@ -947,8 +949,8 @@ function LoginContent() {
             {/* Footer */}
             <div className="auth-footer">
               <p>
-                Não tens conta?{' '}
-                <Link href="/signup">Cria uma aqui</Link>
+                {t('login.noAccountQuestion')}{' '}
+                <Link href="/signup">{t('login.createHere')}</Link>
               </p>
             </div>
           </motion.div>
@@ -972,7 +974,7 @@ function LoginContent() {
               transition={{ delay: 0.2 }}
             >
               <i className="fa-solid fa-shield-check"></i>
-              <span>Verificação em duas etapas</span>
+              <span>{t('login.twoStepVerification')}</span>
             </motion.div>
 
             {/* Email info with animation */}
@@ -989,7 +991,7 @@ function LoginContent() {
               >
                 <i className="fa-solid fa-envelope-open-text"></i>
               </motion.div>
-              <p>Enviámos um email de verificação para:</p>
+              <p>{t('login.sentVerificationTo')}</p>
               <strong>{email}</strong>
             </motion.div>
 
@@ -1002,22 +1004,22 @@ function LoginContent() {
             >
               <div className="instruction-step">
                 <span className="step-number">1</span>
-                <span>Abre o teu email</span>
+                <span>{t('login.openEmail')}</span>
               </div>
               <div className="instruction-step">
                 <span className="step-number">2</span>
-                <span>Clica no link "Log In" ou insere o código de 6 dígitos</span>
+                <span>{t('login.clickLinkOrCode')}</span>
               </div>
               <div className="instruction-step">
                 <span className="step-number">3</span>
-                <span>Esta página atualiza automaticamente</span>
+                <span>{t('login.autoUpdates')}</span>
               </div>
             </motion.div>
 
             {/* OTP Form (caso receba código em vez de link) */}
             <form onSubmit={handleVerifyOtp} className="auth-form">
               <div className="form-group">
-                <label htmlFor="otp">Ou insere o código de 6 dígitos:</label>
+                <label htmlFor="otp">{t('login.orEnter6Digit')}</label>
                 <div className="input-wrapper otp-input-wrapper">
                   <i className="fa-solid fa-key"></i>
                   <input
@@ -1073,14 +1075,14 @@ function LoginContent() {
               transition={{ delay: 0.5 }}
             >
               <i className="fa-solid fa-spinner fa-spin"></i>
-              <span>A aguardar verificação via email...</span>
+              <span>{t('login.waitingVerification')}</span>
             </motion.div>
 
             {/* Resend code */}
             <div className="verify-resend">
               {resendCooldown > 0 ? (
                 <span className="resend-cooldown">
-                  Reenviar email em {resendCooldown}s
+                  {t('login.resendEmailIn')} {resendCooldown}s
                 </span>
               ) : (
                 <button 
@@ -1090,7 +1092,7 @@ function LoginContent() {
                   disabled={isLoading}
                 >
                   <i className="fa-solid fa-rotate-right"></i>
-                  Reenviar email
+                  {t('login.resendEmail')}
                 </button>
               )}
             </div>
@@ -1105,7 +1107,7 @@ function LoginContent() {
                 whileTap={{ scale: 0.95 }}
               >
                 <i className="fa-solid fa-arrow-left"></i>
-                Voltar ao login
+                {t('login.backToLogin')}
               </motion.button>
             </div>
           </motion.div>
@@ -1133,7 +1135,7 @@ function LoginContent() {
               <div className="forgot-icon">
                 <i className="fa-solid fa-key"></i>
               </div>
-              <p>Vamos enviar um código de verificação para o teu email para poderes redefinir a password.</p>
+              <p>{t('login.recoveryIntro')}</p>
             </motion.div>
 
             <form onSubmit={handleSendRecoveryCode} className="auth-form">
@@ -1199,7 +1201,7 @@ function LoginContent() {
                       }}
                     />
                   ) : (
-                    <p style={{ color: 'red', fontSize: '12px' }}>Turnstile Site Key não configurada</p>
+                    <p style={{ color: 'red', fontSize: '12px' }}>{t('login.turnstileNotConfigured')}</p>
                   )}
                 </div>
               </div>
@@ -1213,12 +1215,12 @@ function LoginContent() {
                 {isLoading ? (
                   <>
                     <i className="fa-solid fa-spinner fa-spin"></i>
-                    <span>A enviar...</span>
+                    <span>{t('login.sending')}</span>
                   </>
                 ) : (
                   <>
                     <i className="fa-solid fa-paper-plane"></i>
-                    <span>Enviar Código</span>
+                    <span>{t('login.sendCode')}</span>
                   </>
                 )}
               </button>
@@ -1234,7 +1236,7 @@ function LoginContent() {
                 whileTap={{ scale: 0.95 }}
               >
                 <i className="fa-solid fa-arrow-left"></i>
-                Voltar ao login
+                {t('login.backToLogin')}
               </motion.button>
             </div>
           </motion.div>
@@ -1266,14 +1268,14 @@ function LoginContent() {
               >
                 <i className="fa-solid fa-envelope-open-text"></i>
               </motion.div>
-              <p>Enviámos um código de verificação para:</p>
+              <p>{t('login.sentCodeTo')}</p>
               <strong>{forgotEmail}</strong>
             </motion.div>
 
             <form onSubmit={handleVerifyRecoveryCode} className="auth-form">
               {/* Code Input */}
               <div className="form-group">
-                <label htmlFor="forgotCode">Código de 6 dígitos</label>
+                <label htmlFor="forgotCode">{t('login.sixDigitCode')}</label>
                 <div className="input-wrapper otp-input-wrapper">
                   <i className="fa-solid fa-key"></i>
                   <input
@@ -1309,12 +1311,12 @@ function LoginContent() {
                 {isLoading ? (
                   <>
                     <i className="fa-solid fa-spinner fa-spin"></i>
-                    <span>A verificar...</span>
+                    <span>{t('login.verifying')}</span>
                   </>
                 ) : (
                   <>
                     <i className="fa-solid fa-check"></i>
-                    <span>Verificar Código</span>
+                    <span>{t('login.verifyCode')}</span>
                   </>
                 )}
               </button>
@@ -1324,7 +1326,7 @@ function LoginContent() {
             <div className="verify-resend">
               {resendCooldown > 0 ? (
                 <span className="resend-cooldown">
-                  Reenviar código em {resendCooldown}s
+                  {t('login.resendCodeIn')} {resendCooldown}s
                 </span>
               ) : (
                 <button 
@@ -1334,7 +1336,7 @@ function LoginContent() {
                   disabled={isLoading}
                 >
                   <i className="fa-solid fa-rotate-right"></i>
-                  Reenviar código
+                  {t('login.resendCode')}
                 </button>
               )}
             </div>
@@ -1349,7 +1351,7 @@ function LoginContent() {
                 whileTap={{ scale: 0.95 }}
               >
                 <i className="fa-solid fa-arrow-left"></i>
-                Voltar
+                {t('login.back')}
               </motion.button>
             </div>
           </motion.div>
@@ -1375,13 +1377,13 @@ function LoginContent() {
               transition={{ type: 'spring', stiffness: 200 }}
             >
               <i className="fa-solid fa-circle-check"></i>
-              <span>Código verificado com sucesso!</span>
+              <span>{t('login.codeVerified')}</span>
             </motion.div>
 
             <form onSubmit={handleSetNewPassword} className="auth-form">
               {/* New Password */}
               <div className="form-group">
-                <label htmlFor="newPassword">Nova Password</label>
+                <label htmlFor="newPassword">{t('login.newPassword')}</label>
                 <div className="input-wrapper">
                   <i className="fa-solid fa-lock"></i>
                   <input
@@ -1407,19 +1409,19 @@ function LoginContent() {
                     <ul>
                       <li className={passwordStrength.hasMinLength ? 'valid' : 'invalid'}>
                         <i className={`fa-solid ${passwordStrength.hasMinLength ? 'fa-check' : 'fa-xmark'}`}></i>
-                        Mínimo 8 caracteres
+                        {t('login.min8chars')}
                       </li>
                       <li className={passwordStrength.hasUppercase ? 'valid' : 'invalid'}>
                         <i className={`fa-solid ${passwordStrength.hasUppercase ? 'fa-check' : 'fa-xmark'}`}></i>
-                        Uma letra maiúscula
+                        {t('login.oneUppercase')}
                       </li>
                       <li className={passwordStrength.hasLowercase ? 'valid' : 'invalid'}>
                         <i className={`fa-solid ${passwordStrength.hasLowercase ? 'fa-check' : 'fa-xmark'}`}></i>
-                        Uma letra minúscula
+                        {t('login.oneLowercase')}
                       </li>
                       <li className={passwordStrength.hasNumber ? 'valid' : 'invalid'}>
                         <i className={`fa-solid ${passwordStrength.hasNumber ? 'fa-check' : 'fa-xmark'}`}></i>
-                        Um número
+                        {t('login.oneNumber')}
                       </li>
                     </ul>
                   </div>
@@ -1428,7 +1430,7 @@ function LoginContent() {
 
               {/* Confirm New Password */}
               <div className="form-group">
-                <label htmlFor="confirmNewPassword">Confirmar Nova Password</label>
+                <label htmlFor="confirmNewPassword">{t('login.confirmNewPassword')}</label>
                 <div className="input-wrapper">
                   <i className="fa-solid fa-lock"></i>
                   <input
@@ -1444,13 +1446,13 @@ function LoginContent() {
                 {confirmNewPassword.length > 0 && newPassword !== confirmNewPassword && (
                   <span className="password-mismatch">
                     <i className="fa-solid fa-xmark"></i>
-                    As passwords não coincidem
+                    {t('login.passwordsNoMatch')}
                   </span>
                 )}
                 {confirmNewPassword.length > 0 && newPassword === confirmNewPassword && (
                   <span className="password-match">
                     <i className="fa-solid fa-check"></i>
-                    As passwords coincidem
+                    {t('login.passwordsMatch')}
                   </span>
                 )}
               </div>
@@ -1472,12 +1474,12 @@ function LoginContent() {
                 {isLoading ? (
                   <>
                     <i className="fa-solid fa-spinner fa-spin"></i>
-                    <span>A atualizar...</span>
+                    <span>{t('login.updating')}</span>
                   </>
                 ) : (
                   <>
                     <i className="fa-solid fa-shield-check"></i>
-                    <span>Atualizar Password</span>
+                    <span>{t('login.updatePassword')}</span>
                   </>
                 )}
               </button>

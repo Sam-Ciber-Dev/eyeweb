@@ -8,16 +8,18 @@ import DataChecker from '@/components/DataChecker';
 import UrlChecker from '@/components/UrlChecker';
 import PasswordChecker from '@/components/PasswordChecker';
 import Footer from '@/components/Footer';
-
-const TABS = [
-  { id: 'data', label: 'Dados Pessoais', icon: '' },
-  { id: 'password', label: 'Força da Password', icon: '' },
-  { id: 'url', label: 'Verificar URL', icon: '' },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function Home() {
   const [showContent, setShowContent] = useState(false);
   const [activeTab, setActiveTab] = useState('data');
+  const { t } = useLanguage();
+
+  const TABS = [
+    { id: 'data', label: t('tab.data'), icon: '' },
+    { id: 'password', label: t('tab.password'), icon: '' },
+    { id: 'url', label: t('tab.url'), icon: '' },
+  ];
 
   const handleIntroComplete = () => {
     setShowContent(true);

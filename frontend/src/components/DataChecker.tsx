@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import EmailChecker from './EmailChecker';
 import PhoneChecker from './PhoneChecker';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type DataTab = 'email' | 'phone';
 
 export default function DataChecker() {
   const [activeTab, setActiveTab] = useState<DataTab>('email');
+  const { t } = useLanguage();
 
   return (
     <div className="data-checker">
@@ -18,14 +20,14 @@ export default function DataChecker() {
           onClick={() => setActiveTab('email')}
         >
           <i className="fa-solid fa-envelope"></i>
-          Email
+          {t('data.email')}
         </button>
         <button
           className={`data-tab ${activeTab === 'phone' ? 'active' : ''}`}
           onClick={() => setActiveTab('phone')}
         >
           <i className="fa-solid fa-phone"></i>
-          Telefone
+          {t('data.phone')}
         </button>
       </div>
 

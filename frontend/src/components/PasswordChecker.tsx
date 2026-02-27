@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { checkPasswordStrength, checkPasswordBreach } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface PasswordResult {
   score: number;
@@ -20,6 +21,7 @@ export default function PasswordChecker() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
+  const { t, lang } = useLanguage();
   
   // Resultado da análise de força
   const [strengthResult, setStrengthResult] = useState<PasswordResult | null>(null);
@@ -62,7 +64,7 @@ export default function PasswordChecker() {
     
     // Análise de força em tempo real
     if (value) {
-      setStrengthResult(checkPasswordStrength(value));
+      setStrengthResult(checkPasswordStrength(value, lang));
     } else {
       setStrengthResult(null);
     }
@@ -108,10 +110,10 @@ export default function PasswordChecker() {
 
   const getLevelText = (level: string) => {
     switch (level) {
-      case 'weak': return 'Fraca';
-      case 'medium': return 'Média';
-      case 'strong': return 'Forte';
-      case 'very-strong': return 'Muito Forte';
+      case 'weak': return t('pwd.weak');
+      case 'medium': return t('pwd.medium');
+      case 'strong': return t('pwd.strong');
+      case 'very-strong': return t('pwd.veryStrong');
       default: return '';
     }
   };
@@ -136,7 +138,7 @@ export default function PasswordChecker() {
         <input
           type={showPassword ? 'text' : 'password'}
           className="input"
-          placeholder="Introduz uma password para verificar..."
+          placeholder={t('pwd.placeholder')}
           value={password}
           onChange={handleChange}
           style={{ paddingRight: '3rem' }}
@@ -171,10 +173,10 @@ export default function PasswordChecker() {
         {loading ? (
           <>
             <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '0.5rem' }}></i>
-            A verificar...
+            {t('pwd.checking')}
           </>
         ) : (
-          'Verificar Password'
+          t('pwd.check')
         )}
       </button>
 
@@ -185,7 +187,7 @@ export default function PasswordChecker() {
           {/* Força da Password */}
           <div className="password-strength-section">
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-              <span style={{ color: 'var(--gray)', fontSize: '1rem' }}>Password:</span>
+              <span style={{ color: 'var(--gray)', fontSize: '1rem' }}>{t('pwd.label')}</span>
               <span 
                 className={`status-badge ${getLevelBadgeClass(adjustedLevel)}`}
                 style={{ fontSize: '1.1rem', padding: '0.5rem 1rem' }}
@@ -211,7 +213,7 @@ export default function PasswordChecker() {
               }}></div>
             </div>
             <p style={{ color: 'var(--gray)', fontSize: '0.85rem', textAlign: 'right' }}>
-              Pontuação: {adjustedScore}/10
+              {t('pwd.score')} {adjustedScore}/10
             </p>
           </div>
 
@@ -238,8 +240,8 @@ export default function PasswordChecker() {
                   fontWeight: 600
                 }}>
                   {datasetResult.found
-                    ? 'Password encontrada no Dataset!'
-                    : 'Palavra passe não encontrada no Dataset.'}
+                    ? t('pwd.foundInDataset')
+                    : t('pwd.notFoundInDataset')}
                 </p>
               </div>
             </div>
@@ -257,7 +259,7 @@ export default function PasswordChecker() {
                 marginBottom: '0.75rem',
                 color: 'var(--white)'
               }}>
-                Sugestões de Melhoria
+                {t('pwd.suggestions')}
               </h4>
               <ul style={{ 
                 paddingLeft: '1.25rem', 
@@ -268,7 +270,7 @@ export default function PasswordChecker() {
               }}>
                 {datasetResult.found && (
                   <li style={{ color: 'var(--danger)' }}>
-                    <strong>Muda esta password imediatamente!</strong> Foi exposta em fugas de dados.
+                    <strong>{t('pwd.changeNow')}</strong> {t('pwd.exposed')}
                   </li>
                 )}
                 {strengthResult.feedback.map((tip, idx) => (
@@ -289,7 +291,7 @@ export default function PasswordChecker() {
               textAlign: 'center'
             }}>
               <p style={{ color: '#00ff88', fontSize: '1.1rem' }}>
-                ✨ Excelente! Esta password é muito segura e não foi encontrada em fugas de dados.
+                {t('pwd.excellent')}
               </p>
             </div>
           )}

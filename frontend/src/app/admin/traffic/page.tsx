@@ -699,8 +699,8 @@ export default function TrafficMonitorPage() {
     if (detailedTypeFilter === 'request' && (entry._type !== 'request' || entry.method === 'PAGE')) return false;
     if (detailedTypeFilter === 'visit' && !(entry._type === 'request' && entry.method === 'PAGE')) return false;
     if (detailedTypeFilter === 'threat' && entry._type !== 'threat') return false;
-    // Task 9: Hide admin IPs from threats view when admin is logged in
-    if (entry._type === 'threat' && adminIpSet.has(entry.ip)) return false;
+    // Task 9: Hide admin threats — only by fingerprint, not IP (same IP can be shared by multiple devices)
+    if (entry._type === 'threat' && entry.fingerprint_hash && adminFpSet.has(entry.fingerprint_hash)) return false;
     return true;
   });
 
@@ -1327,7 +1327,7 @@ export default function TrafficMonitorPage() {
                     <td className="col-actions">
                       {(() => {
                         const fp = entry.fingerprint_hash || '';
-                        const isAdmin = (fp && adminFpSet.has(fp)) || adminIpSet.has(entry.ip);
+                        const isAdmin = fp ? adminFpSet.has(fp) : false;
                         const isBlocked = (fp && blockedFpSet.has(fp)) || blockedIpSet.has(entry.ip);
                         const isAutoBlocked = entry._type === 'threat' && entry.auto_blocked;
                         if (isAdmin) return (

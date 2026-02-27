@@ -60,6 +60,10 @@ class URLCheckRequest(BaseModel):
         default=False,
         description="Forçar nova verificação ignorando cache"
     )
+    lang: str = Field(
+        default="pt",
+        description="Idioma da resposta da IA: pt ou en"
+    )
 
 
 class URLCheckResponse(BaseModel):
@@ -147,7 +151,7 @@ async def check_url_endpoint(request: URLCheckRequest):
         logger.info(f"URL check request: {url[:50]}...")
         
         # Executar verificação
-        result = await check_url(url, force_recheck=request.force_recheck)
+        result = await check_url(url, force_recheck=request.force_recheck, lang=request.lang)
         
         return URLCheckResponse(**result)
         
