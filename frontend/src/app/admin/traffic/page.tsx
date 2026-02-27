@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  type PieLabelRenderProps,
 } from 'recharts';
 import './traffic.css';
 
@@ -807,7 +808,11 @@ export default function TrafficMonitorPage() {
                             outerRadius={100}
                             dataKey="count"
                             nameKey="name"
-                            label={({ name, percent }: { name: string; percent?: number }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                            label={(props: PieLabelRenderProps) => {
+                              const n = props.name ?? '';
+                              const p = typeof props.percent === 'number' ? props.percent : 0;
+                              return `${n} ${(p * 100).toFixed(0)}%`;
+                            }}
                             labelLine={false}
                           >
                             {chartData.threat_distribution.map((t, i) => (
@@ -874,7 +879,11 @@ export default function TrafficMonitorPage() {
                           innerRadius={60}
                           outerRadius={90}
                           dataKey="value"
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          label={(props: PieLabelRenderProps) => {
+                            const n = props.name ?? '';
+                            const p = typeof props.percent === 'number' ? props.percent : 0;
+                            return `${n} ${(p * 100).toFixed(0)}%`;
+                          }}
                         >
                           <Cell fill="#ff4444" />
                           <Cell fill="#444" />
