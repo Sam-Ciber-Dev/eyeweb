@@ -14,7 +14,7 @@ interface NavbarProps {
 export default function Navbar({ showLogin = true }: NavbarProps) {
   const router = useRouter();
   const { user, profile, isAuthenticated, isAdmin, logout, loading } = useAuth();
-  const { lang, setLang, t } = useLanguage();
+  const { lang, setLang, t, langLocked } = useLanguage();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -67,7 +67,8 @@ export default function Navbar({ showLogin = true }: NavbarProps) {
         <button
           className="lang-toggle"
           onClick={() => setLang(lang === 'pt' ? 'en' : 'pt')}
-          title={lang === 'pt' ? 'Switch to English' : 'Mudar para Português'}
+          title={langLocked ? (lang === 'pt' ? 'Aguarde...' : 'Please wait...') : (lang === 'pt' ? 'Switch to English' : 'Mudar para Português')}
+          disabled={langLocked}
         >
           {lang === 'pt' ? 'EN' : 'PT'}
         </button>

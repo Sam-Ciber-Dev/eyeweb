@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { translations } from '@/i18n/translations';
 
 export type Lang = 'pt' | 'en';
@@ -9,18 +9,29 @@ interface LanguageContextType {
   lang: Lang;
   setLang: (lang: Lang) => void;
   t: (key: string) => string;
+  langLocked: boolean;
+  setLangLocked: (locked: boolean) => void;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
   lang: 'pt',
   setLang: () => {},
   t: (key: string) => key,
+  langLocked: false,
+  setLangLocked: () => {},
 });
 
 const STORAGE_KEY = 'eyeweb_lang';
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>('pt');
+  const [langLocked, setLangLockedState] = useState(false);
+  const langLockedRef = useRef(false);
+
+  const setLangLocked = useCallback((locked: boolean) => {
+    langLockedRef.current = locked;
+    setLangLockedState(locked);
+  }, []);
 
   // Load persisted language on mount
   useEffect(() => {
@@ -32,6 +43,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setLang = useCallback((newLang: Lang) => {
+    if (langLockedRef.current) return; // Bloqueado enquanto IA escreve
     setLangState(newLang);
     localStorage.setItem(STORAGE_KEY, newLang);
     document.documentElement.lang = newLang;
@@ -51,7 +63,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [lang]);
 
   return (
-    <LanguageContext.Provider value={{ lang, setLang, t }}>
+    <LanguageContext.Provider value={{ lang, setLang, t, langLocked, setLangLocked }}>
       {children}
     </LanguageContext.Provider>
   );

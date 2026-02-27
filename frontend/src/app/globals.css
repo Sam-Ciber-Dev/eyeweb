@@ -200,10 +200,14 @@ body {
   transition: all 0.3s;
   font-family: inherit;
 }
-.lang-toggle:hover {
+.lang-toggle:hover:not(:disabled) {
   border-color: var(--blue);
   color: var(--blue);
   background: rgba(0,123,255,0.08);
+}
+.lang-toggle:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 /* Nav Icon (Login icon) */

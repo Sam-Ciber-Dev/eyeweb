@@ -11,6 +11,10 @@ const INTRO_KEY = 'eyeweb_intro_seen';
 interface ChatMsg {
   text: string;
   type: 'ew-bot' | 'ew-user';
+  isWelcome?: boolean;     // Welcome message — auto-translates via t()
+  userPrompt?: string;     // For bot AI responses: the user message that triggered this
+  ptText?: string;         // Cached PT translation
+  enText?: string;         // Cached EN translation
 }
 
 export default function ChatWidget() {
@@ -23,11 +27,11 @@ export default function ChatWidget() {
 }
 
 function ChatWidgetInner() {
-  const { t, lang } = useLanguage();
-  const [isVisible, setIsVisible] = useState(false); // Só mostra depois do splash
+  const { t, lang, setLangLocked } = useLanguage();
+  const [isVisible, setIsVisible] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [isClosing, setIsClosing] = useState(false); // Para animação de fade-out
-  const [isExpanded, setIsExpanded] = useState(false); // Tamanho do chat
+  const [isClosing, setIsClosing] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -38,55 +42,50 @@ function ChatWidgetInner() {
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cooldownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const typingTextRef = useRef(''); // Ref para evitar stale closure no typewriter
+  const typingTextRef = useRef('');
+  const prevLangRef = useRef(lang);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
+  // ═══ Helper — texto a mostrar por mensagem ═══
+  const getDisplayText = useCallback((msg: ChatMsg): string => {
+    if (msg.isWelcome) return t('chat.welcome');
+    if (msg.type === 'ew-user') return msg.text;
+    // Bot AI message: preferir cache no idioma atual
+    const cached = lang === 'pt' ? msg.ptText : msg.enText;
+    return cached || msg.text;
+  }, [lang, t]);
 
   // ═══ VISIBILIDADE — Só aparece depois do splash screen ═══
   useEffect(() => {
-    // Se já viu a intro (refresh/navegação), mostra imediatamente
     if (sessionStorage.getItem(INTRO_KEY) === 'true') {
       setIsVisible(true);
       return;
     }
-
-    // Senão, poll até o utilizador clicar no olho
-    // Depois esperar 2s (1.5s animação do olho + 0.5s fade-in do conteúdo)
     const interval = setInterval(() => {
       if (sessionStorage.getItem(INTRO_KEY) === 'true') {
         clearInterval(interval);
         setTimeout(() => setIsVisible(true), 2000);
       }
     }, 300);
-
     return () => clearInterval(interval);
   }, []);
 
-  // ═══ PERSISTENCIA (sessionStorage) ═══
+  // ═══ PERSISTENCIA — carregar do sessionStorage no mount ═══
   useEffect(() => {
     const saved = sessionStorage.getItem('ewChatHistory');
-    const savedLang = sessionStorage.getItem('ewChatLang');
-    
-    // Se o idioma mudou, apenas atualizar a lang guardada — não tocar nas mensagens
-    if (savedLang && savedLang !== lang) {
-      sessionStorage.setItem('ewChatLang', lang);
-      return;
-    }
-    
     if (saved) {
       try {
         const parsed: ChatMsg[] = JSON.parse(saved);
         if (parsed.length > 0) {
           setMessages(parsed);
-          sessionStorage.setItem('ewChatLang', lang);
           return;
         }
       } catch {}
     }
-    // Primeira vez — mensagem de boas-vindas
-    const welcome: ChatMsg = { text: t('chat.welcome'), type: 'ew-bot' };
-    setMessages([welcome]);
-    sessionStorage.setItem('ewChatHistory', JSON.stringify([welcome]));
-    sessionStorage.setItem('ewChatLang', lang);
-  }, [lang, t]);
+    // Primeira vez — mensagem de boas-vindas (auto-traduz via isWelcome)
+    setMessages([{ text: '', type: 'ew-bot', isWelcome: true }]);
+  }, []); // Só no mount
 
   // Guardar historico sempre que muda
   useEffect(() => {
@@ -94,6 +93,53 @@ function ChatWidgetInner() {
       sessionStorage.setItem('ewChatHistory', JSON.stringify(messages));
     }
   }, [messages]);
+
+  // ═══ TRADUÇÃO — quando o idioma muda, traduzir respostas do bot ═══
+  useEffect(() => {
+    if (prevLangRef.current === lang) return;
+    prevLangRef.current = lang;
+
+    const currentMessages = messagesRef.current;
+    const langKey = lang === 'pt' ? 'ptText' : 'enText';
+
+    // Encontrar mensagens do bot que precisam de tradução
+    const toTranslate: { idx: number; userPrompt: string }[] = [];
+    currentMessages.forEach((msg, idx) => {
+      if (msg.type === 'ew-bot' && !msg.isWelcome && msg.userPrompt && !msg[langKey]) {
+        toTranslate.push({ idx, userPrompt: msg.userPrompt });
+      }
+    });
+
+    if (toTranslate.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      for (const item of toTranslate) {
+        if (cancelled) break;
+        try {
+          const res = await fetch(`${API_URL}/api/user/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: item.userPrompt, lang }),
+          });
+          const data = await res.json();
+          if (!cancelled && data.response) {
+            setMessages(prev => prev.map((msg, i) => {
+              if (i === item.idx && msg.type === 'ew-bot' && msg.userPrompt === item.userPrompt) {
+                return { ...msg, [langKey]: data.response };
+              }
+              return msg;
+            }));
+          }
+        } catch {
+          // Falha silenciosa — mantém texto no idioma anterior
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
 
   // ═══ SCROLL ═══
   const scrollToBottom = useCallback(() => {
@@ -108,11 +154,12 @@ function ChatWidgetInner() {
     scrollToBottom();
   }, [messages, typingText, scrollToBottom]);
 
-  // ═══ TYPEWRITER (com ref para evitar texto bugado) ═══
+  // ═══ TYPEWRITER (bloqueia troca de idioma enquanto escreve) ═══
   const typeWriter = useCallback((text: string, onComplete: () => void) => {
     typingTextRef.current = '';
     setTypingText('');
     setIsTyping(true);
+    setLangLocked(true);
 
     let i = 0;
     const type = () => {
@@ -123,6 +170,7 @@ function ChatWidgetInner() {
         typingTimeoutRef.current = setTimeout(type, 15);
       } else {
         setIsTyping(false);
+        setLangLocked(false);
         setTypingText('');
         typingTextRef.current = '';
         onComplete();
@@ -130,7 +178,7 @@ function ChatWidgetInner() {
     };
 
     typingTimeoutRef.current = setTimeout(type, 50);
-  }, []);
+  }, [setLangLocked]);
 
   // ═══ COOLDOWN ═══
   const applyCooldown = useCallback(() => {
@@ -146,7 +194,9 @@ function ChatWidgetInner() {
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       if (cooldownTimeoutRef.current) clearTimeout(cooldownTimeoutRef.current);
+      setLangLocked(false);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ═══ ENVIAR MENSAGEM ═══
@@ -168,9 +218,17 @@ function ChatWidgetInner() {
       const data = await res.json();
       const botText = data.response || t('chat.error');
 
-      // Typewriter effect + cooldown
+      // Guardar resposta com cache no idioma atual + referência à pergunta do user
+      const botMsg: ChatMsg = {
+        text: botText,
+        type: 'ew-bot',
+        userPrompt: text,
+      };
+      if (lang === 'pt') botMsg.ptText = botText;
+      else botMsg.enText = botText;
+
       typeWriter(botText, () => {
-        setMessages(prev => [...prev, { text: botText, type: 'ew-bot' }]);
+        setMessages(prev => [...prev, botMsg]);
         applyCooldown();
       });
     } catch {
@@ -200,7 +258,6 @@ function ChatWidgetInner() {
 
   const closeChat = () => {
     setIsClosing(true);
-    // Esperar a animação de fade-out acabar antes de esconder
     setTimeout(() => {
       setIsOpen(false);
       setIsClosing(false);
@@ -244,7 +301,7 @@ function ChatWidgetInner() {
           <div className="ew-history" ref={historyRef}>
             {messages.map((msg, i) => (
               <div key={i} className={`ew-msg ${msg.type}`}>
-                {msg.text}
+                {getDisplayText(msg)}
               </div>
             ))}
             {/* Typewriter ativo */}

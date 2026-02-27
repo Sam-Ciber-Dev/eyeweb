@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { checkUrlWithAI, UrlCheckResult } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -9,7 +9,7 @@ export default function UrlChecker() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UrlCheckResult | null>(null);
-  const { t, lang } = useLanguage();
+  const { t, lang, setLangLocked } = useLanguage();
   
   // Estados para animação sequencial
   const [showGoogleLoading, setShowGoogleLoading] = useState(false);
@@ -22,6 +22,23 @@ export default function UrlChecker() {
   
   // Estado para tooltip
   const [showTooltip, setShowTooltip] = useState(false);
+
+  // Refs para tradução da opinião IA ao mudar idioma
+  const checkedUrlRef = useRef<string | null>(null);
+  const prevLangRef = useRef(lang);
+  const typingDoneRef = useRef(false);
+  const resultRef = useRef(result);
+  resultRef.current = result;
+
+  // Texto da opinião IA a mostrar (com cache por idioma)
+  const [aiPtText, setAiPtText] = useState<string | null>(null);
+  const [aiEnText, setAiEnText] = useState<string | null>(null);
+
+  // Helper — obter opinião IA no idioma atual
+  const getAiOpinion = useCallback((): string | null => {
+    const cached = lang === 'pt' ? aiPtText : aiEnText;
+    return cached || result?.ai_opinion || null;
+  }, [lang, aiPtText, aiEnText, result?.ai_opinion]);
 
   const sanitizeAndValidateUrl = (raw: string): { valid: boolean; cleaned: string; error?: string } => {
     let input = raw.trim();
@@ -106,6 +123,9 @@ export default function UrlChecker() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setAiPtText(null);
+    setAiEnText(null);
+    typingDoneRef.current = false;
     setShowGoogleLoading(false);
     setShowGoogleResult(false);
     setShowSslLoading(false);
@@ -114,12 +134,22 @@ export default function UrlChecker() {
     setShowAiOpinion(false);
     setDisplayedText('');
 
+    // Bloquear troca de idioma durante análise
+    setLangLocked(true);
+
     try {
       // Iniciar animação do Google
       setShowGoogleLoading(true);
       
       const data = await checkUrlWithAI(validation.cleaned, false, lang);
       setResult(data);
+      checkedUrlRef.current = validation.cleaned;
+
+      // Guardar cache no idioma atual
+      if (data.ai_opinion) {
+        if (lang === 'pt') setAiPtText(data.ai_opinion);
+        else setAiEnText(data.ai_opinion);
+      }
       
       // Sequência de animações
       setTimeout(() => {
@@ -154,9 +184,16 @@ export default function UrlChecker() {
 
   // Efeito de typing para a opinião da IA
   useEffect(() => {
-    if (showAiOpinion && result?.ai_opinion) {
+    const opinion = getAiOpinion();
+    if (showAiOpinion && opinion) {
+      // Se o typing já terminou antes (troca de idioma), mostrar instantaneamente
+      if (typingDoneRef.current) {
+        setDisplayedText(opinion);
+        return;
+      }
+
       let index = 0;
-      const text = result.ai_opinion;
+      const text = opinion;
       setDisplayedText('');
       
       const interval = setInterval(() => {
@@ -165,12 +202,54 @@ export default function UrlChecker() {
           index++;
         } else {
           clearInterval(interval);
+          // Desbloquear troca de idioma quando termina de escrever
+          typingDoneRef.current = true;
+          setLangLocked(false);
         }
       }, 20);
       
       return () => clearInterval(interval);
     }
-  }, [showAiOpinion, result?.ai_opinion]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAiOpinion, getAiOpinion]);
+
+  // Re-fetch opinião IA quando o idioma muda (depois do typing terminar)
+  useEffect(() => {
+    if (prevLangRef.current === lang) return;
+    prevLangRef.current = lang;
+
+    // Só re-fetch se já temos resultado e o typing terminou
+    if (!typingDoneRef.current || !checkedUrlRef.current || !resultRef.current) return;
+
+    // Verificar se já temos cache neste idioma
+    const cached = lang === 'pt' ? aiPtText : aiEnText;
+    if (cached) return; // Já temos — o getAiOpinion vai mostrar
+
+    let cancelled = false;
+    setLangLocked(true); // Bloquear durante re-fetch
+    (async () => {
+      try {
+        const data = await checkUrlWithAI(checkedUrlRef.current!, false, lang);
+        if (!cancelled && data.ai_opinion) {
+          if (lang === 'pt') setAiPtText(data.ai_opinion);
+          else setAiEnText(data.ai_opinion);
+        }
+      } catch {
+        // Falha silenciosa — mantém opinião no idioma anterior
+      } finally {
+        if (!cancelled) setLangLocked(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
+
+  // Cleanup — desbloquear idioma ao desmontar
+  useEffect(() => {
+    return () => { setLangLocked(false); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -351,7 +430,7 @@ export default function UrlChecker() {
             )}
 
             {/* Opinião da IA com efeito de typing */}
-            {showAiOpinion && result?.ai_opinion && (
+            {showAiOpinion && getAiOpinion() && (
               <div style={{
                 marginTop: '1.5rem',
                 padding: '1rem',
@@ -375,7 +454,7 @@ export default function UrlChecker() {
                 }}>
                   {displayedText}
                   <span style={{ 
-                    opacity: displayedText.length < (result.ai_opinion?.length || 0) ? 1 : 0,
+                    opacity: displayedText.length < (getAiOpinion()?.length || 0) ? 1 : 0,
                     animation: 'blink 0.7s infinite'
                   }}>|</span>
                 </p>
