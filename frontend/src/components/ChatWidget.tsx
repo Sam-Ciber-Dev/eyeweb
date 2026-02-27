@@ -65,11 +65,8 @@ function ChatWidgetInner() {
     const saved = sessionStorage.getItem('ewChatHistory');
     const savedLang = sessionStorage.getItem('ewChatLang');
     
-    // Se o idioma guardado é diferente do atual, resetar com mensagem no idioma certo
+    // Se o idioma mudou, apenas atualizar a lang guardada — não tocar nas mensagens
     if (savedLang && savedLang !== lang) {
-      const welcome: ChatMsg = { text: t('chat.welcome'), type: 'ew-bot' };
-      setMessages([welcome]);
-      sessionStorage.setItem('ewChatHistory', JSON.stringify([welcome]));
       sessionStorage.setItem('ewChatLang', lang);
       return;
     }
@@ -132,7 +129,7 @@ function ChatWidgetInner() {
       }
     };
 
-    setTimeout(type, 50);
+    typingTimeoutRef.current = setTimeout(type, 50);
   }, []);
 
   // ═══ COOLDOWN ═══

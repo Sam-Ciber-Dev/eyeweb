@@ -249,10 +249,12 @@ export default function AboutPage() {
             className="about-section-card"
             style={{ opacity: visibleSections.has('motivation') ? 1 : 0, transform: visibleSections.has('motivation') ? 'translateY(0)' : 'translateY(40px)', transition: 'all 0.8s ease' }}
           >
-            <div className="section-icon">
-              <i className={t.motivationIcon}></i>
+            <div className="section-header">
+              <div className="section-icon">
+                <i className={t.motivationIcon}></i>
+              </div>
+              <h2><span className="accent">{t.motivationTitle}</span></h2>
             </div>
-            <h2><span className="accent">{t.motivationTitle}</span></h2>
             <p>{t.motivation1}</p>
             <p style={{ marginTop: '0.75rem' }}>{t.motivation2}</p>
           </div>
@@ -264,10 +266,12 @@ export default function AboutPage() {
             className="about-section-card"
             style={{ opacity: visibleSections.has('platform') ? 1 : 0, transform: visibleSections.has('platform') ? 'translateY(0)' : 'translateY(40px)', transition: 'all 0.8s ease 0.1s' }}
           >
-            <div className="section-icon">
-              <i className={t.aboutIcon}></i>
+            <div className="section-header">
+              <div className="section-icon">
+                <i className={t.aboutIcon}></i>
+              </div>
+              <h2><span className="accent">{t.aboutTitle}</span></h2>
             </div>
-            <h2><span className="accent">{t.aboutTitle}</span></h2>
             <p>{t.about}</p>
 
             <h3 style={{ color: 'var(--white)', marginTop: '1.5rem', marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 600 }}>
@@ -295,10 +299,12 @@ export default function AboutPage() {
             className="about-section-card"
             style={{ opacity: visibleSections.has('security') ? 1 : 0, transform: visibleSections.has('security') ? 'translateY(0)' : 'translateY(40px)', transition: 'all 0.8s ease 0.2s' }}
           >
-            <div className="section-icon">
-              <i className={t.securityIcon}></i>
+            <div className="section-header">
+              <div className="section-icon">
+                <i className={t.securityIcon}></i>
+              </div>
+              <h2><span className="accent">{t.securityTitle}</span></h2>
             </div>
-            <h2><span className="accent">{t.securityTitle}</span></h2>
             <p>{t.securityIntro}</p>
             <div className="security-grid">
               {t.security.map((s, i) => (
@@ -318,10 +324,12 @@ export default function AboutPage() {
             className="about-section-card"
             style={{ opacity: visibleSections.has('team') ? 1 : 0, transform: visibleSections.has('team') ? 'translateY(0)' : 'translateY(40px)', transition: 'all 0.8s ease 0.3s' }}
           >
-            <div className="section-icon">
-              <i className={t.teamIcon}></i>
+            <div className="section-header">
+              <div className="section-icon">
+                <i className={t.teamIcon}></i>
+              </div>
+              <h2><span className="accent">{t.teamTitle}</span></h2>
             </div>
-            <h2><span className="accent">{t.teamTitle}</span></h2>
             <div className="team-grid">
               {TEAM.map((member, i) => (
                 <div
