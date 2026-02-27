@@ -807,7 +807,7 @@ export default function TrafficMonitorPage() {
                             outerRadius={100}
                             dataKey="count"
                             nameKey="name"
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            label={({ name, percent }: { name: string; percent?: number }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                             labelLine={false}
                           >
                             {chartData.threat_distribution.map((t, i) => (
