@@ -350,7 +350,7 @@ def get_broadcast_email_template(subject: str, message: str) -> str:
                         <tr>
                             <td style="padding: 32px 32px 24px; text-align: center; border-bottom: 1px solid #222222;">
                                 <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;">Eye Web</h1>
-                                <p style="margin: 8px 0 0; font-size: 14px; color: #666666;">Site Oficial do EyeWeb</p>
+                                <p style="margin: 8px 0 0; font-size: 14px; color: #666666;">EyeWeb Official Site</p>
                             </td>
                         </tr>
                         
@@ -374,7 +374,7 @@ def get_broadcast_email_template(subject: str, message: str) -> str:
                                     EyeWeb: Let's keep an eye on each other.
                                 </p>
                                 <p style="margin: 0; font-size: 12px; text-align: center;">
-                                    <a href="https://eyeweb.vercel.app" style="color: #ff0000; text-decoration: none;">Link para o Eye Web</a>
+                                    <a href="https://eyeweb.vercel.app" style="color: #ff0000; text-decoration: none;">Go to Eye Web</a>
                                 </p>
                             </td>
                         </tr>
@@ -391,14 +391,14 @@ def get_welcome_email_template(display_name: str) -> str:
     """
     Template HTML para email de boas-vindas.
     """
-    name = display_name or "Utilizador"
+    name = display_name or "User"
     return f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Bem-vindo ao Eye Web!</title>
+        <title>Welcome to Eye Web!</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0a0a0a; padding: 40px 20px;">
@@ -409,7 +409,7 @@ def get_welcome_email_template(display_name: str) -> str:
                         <tr>
                             <td style="padding: 32px 32px 24px; text-align: center; border-bottom: 1px solid #222222;">
                                 <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
-                                <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #3b82f6;">Bem-vindo ao Eye Web!</h1>
+                                <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #3b82f6;">Welcome to Eye Web!</h1>
                             </td>
                         </tr>
                         
@@ -417,32 +417,32 @@ def get_welcome_email_template(display_name: str) -> str:
                         <tr>
                             <td style="padding: 32px;">
                                 <p style="margin: 0 0 20px; font-size: 18px; color: #ffffff;">
-                                    Olá <strong>{name}</strong>! 👋
+                                    Hello <strong>{name}</strong>! 👋
                                 </p>
                                 
                                 <p style="margin: 0 0 20px; font-size: 15px; color: #cccccc; line-height: 1.7;">
-                                    Obrigado por te registares no <strong style="color: #3b82f6;">Eye Web</strong>! 
-                                    A tua segurança online é a nossa prioridade.
+                                    Thank you for registering on <strong style="color: #3b82f6;">Eye Web</strong>! 
+                                    Your online security is our priority.
                                 </p>
                                 
                                 <div style="background-color: #1a1a2e; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                                    <h3 style="margin: 0 0 12px; font-size: 16px; color: #3b82f6;">O que podes fazer:</h3>
+                                    <h3 style="margin: 0 0 12px; font-size: 16px; color: #3b82f6;">What you can do:</h3>
                                     <ul style="margin: 0; padding: 0 0 0 20px; color: #cccccc; line-height: 1.8;">
-                                        <li>🔍 <strong>Verificar emails</strong> — Descobre se os teus dados foram expostos</li>
-                                        <li>🔐 <strong>Testar passwords</strong> — Verifica se são seguras</li>
-                                        <li>🌐 <strong>Analisar URLs</strong> — Detecta sites maliciosos</li>
-                                        <li>📱 <strong>Verificar telefones</strong> — Confirma a segurança do teu número</li>
+                                        <li>🔍 <strong>Check emails</strong> — Find out if your data has been exposed</li>
+                                        <li>🔐 <strong>Test passwords</strong> — Check if they are secure</li>
+                                        <li>🌐 <strong>Analyze URLs</strong> — Detect malicious websites</li>
+                                        <li>📱 <strong>Check phones</strong> — Confirm your number's security</li>
                                     </ul>
                                 </div>
                                 
                                 <p style="margin: 0 0 20px; font-size: 15px; color: #888888; line-height: 1.7;">
-                                    Todos os dados são verificados usando <strong style="color: #22c55e;">K-Anonymity</strong> — 
-                                    nunca enviamos as tuas informações completas, apenas prefixos de hash.
+                                    All data is verified using <strong style="color: #22c55e;">K-Anonymity</strong> — 
+                                    we never send your complete information, only hash prefixes.
                                 </p>
                                 
                                 <div style="text-align: center; margin-top: 24px;">
                                     <a href="https://eyeweb.vercel.app" style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-                                        Começar a usar o Eye Web
+                                        Start using Eye Web
                                     </a>
                                 </div>
                             </td>
@@ -455,7 +455,7 @@ def get_welcome_email_template(display_name: str) -> str:
                                     EyeWeb: Let's keep an eye on each other.
                                 </p>
                                 <p style="margin: 0; font-size: 12px; text-align: center;">
-                                    <a href="https://eyeweb.vercel.app" style="color: #ff0000; text-decoration: none;">Link para o Eye Web</a>
+                                    <a href="https://eyeweb.vercel.app" style="color: #ff0000; text-decoration: none;">Go to Eye Web</a>
                                 </p>
                             </td>
                         </tr>
@@ -477,22 +477,22 @@ def get_account_action_email_template(action_type: str, reason: str, user_name: 
     Template HTML para notificacao de acao na conta (editar/banir/eliminar).
     Usa o mesmo design do broadcast: dark theme, Eye Web branding, vermelho.
     """
-    name = user_name or "Utilizador"
+    name = user_name or "User"
     
     action_titles = {
-        "edit": "Nome da Conta Alterado",
-        "ban": "Conta Suspensa",
-        "delete": "Conta Eliminada",
+        "edit": "Account Name Changed",
+        "ban": "Account Suspended",
+        "delete": "Account Deleted",
     }
     
     action_descriptions = {
-        "edit": f"O nome da tua conta no Eye Web foi alterado por um administrador.",
-        "ban": f"A tua conta no Eye Web foi suspensa permanentemente por um administrador. Nao poderás iniciar sessao.",
-        "delete": f"A tua conta no Eye Web e todos os dados associados foram eliminados permanentemente por um administrador.",
+        "edit": f"Your Eye Web account name has been changed by an administrator.",
+        "ban": f"Your Eye Web account has been permanently suspended by an administrator. You will not be able to sign in.",
+        "delete": f"Your Eye Web account and all associated data have been permanently deleted by an administrator.",
     }
     
-    title = action_titles.get(action_type, "Alteracao na Conta")
-    description = action_descriptions.get(action_type, "Houve uma alteracao na tua conta.")
+    title = action_titles.get(action_type, "Account Change")
+    description = action_descriptions.get(action_type, "There has been a change to your account.")
     
     return f"""
     <!DOCTYPE html>
@@ -511,7 +511,7 @@ def get_account_action_email_template(action_type: str, reason: str, user_name: 
                         <tr>
                             <td style="padding: 32px 32px 24px; text-align: center; border-bottom: 1px solid #222222;">
                                 <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;">Eye Web</h1>
-                                <p style="margin: 8px 0 0; font-size: 14px; color: #666666;">Site Oficial do EyeWeb</p>
+                                <p style="margin: 8px 0 0; font-size: 14px; color: #666666;">EyeWeb Official Site</p>
                             </td>
                         </tr>
                         
@@ -523,7 +523,7 @@ def get_account_action_email_template(action_type: str, reason: str, user_name: 
                                 </h2>
                                 
                                 <p style="margin: 0 0 16px; font-size: 15px; color: #cccccc; line-height: 1.7;">
-                                    Ola <strong>{name}</strong>,
+                                    Hello <strong>{name}</strong>,
                                 </p>
                                 
                                 <p style="margin: 0 0 20px; font-size: 15px; color: #cccccc; line-height: 1.7;">
@@ -531,14 +531,14 @@ def get_account_action_email_template(action_type: str, reason: str, user_name: 
                                 </p>
                                 
                                 <div style="background-color: #1a1a1a; border-left: 4px solid #ff0000; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 20px;">
-                                    <p style="margin: 0 0 4px; font-size: 13px; color: #888888; font-weight: 600; text-transform: uppercase;">Motivo</p>
+                                    <p style="margin: 0 0 4px; font-size: 13px; color: #888888; font-weight: 600; text-transform: uppercase;">Reason</p>
                                     <p style="margin: 0; font-size: 15px; color: #ffffff; line-height: 1.6;">
                                         {reason}
                                     </p>
                                 </div>
                                 
                                 <p style="margin: 0; font-size: 13px; color: #666666; line-height: 1.6;">
-                                    Se acreditas que esta acao foi tomada por engano, contacta-nos respondendo a este email.
+                                    If you believe this action was taken by mistake, please contact us by replying to this email.
                                 </p>
                             </td>
                         </tr>
@@ -550,7 +550,7 @@ def get_account_action_email_template(action_type: str, reason: str, user_name: 
                                     EyeWeb: Let's keep an eye on each other.
                                 </p>
                                 <p style="margin: 0; font-size: 12px; text-align: center;">
-                                    <a href="https://eyeweb.vercel.app" style="color: #ff0000; text-decoration: none;">Link para o Eye Web</a>
+                                    <a href="https://eyeweb.vercel.app" style="color: #ff0000; text-decoration: none;">Go to Eye Web</a>
                                 </p>
                             </td>
                         </tr>
@@ -784,7 +784,7 @@ async def send_welcome_email(email: str, display_name: Optional[str] = None):
     html_content = get_welcome_email_template(display_name or "")
     success = await send_email_via_brevo(
         email,
-        "🎉 Bem-vindo ao Eye Web!",
+        "🎉 Welcome to Eye Web!",
         html_content
     )
     
@@ -943,7 +943,7 @@ async def ban_user(request: UserActionRequest):
         # Enviar email de notificacao
         if user_email and request.reason:
             html = get_account_action_email_template("ban", request.reason, user_name)
-            await send_email_via_brevo(user_email, "Conta Suspensa - Eye Web", html)
+            await send_email_via_brevo(user_email, "Account Suspended - Eye Web", html)
         
         return {"success": True, "message": "Utilizador banido com sucesso."}
     except HTTPException:
@@ -998,7 +998,7 @@ async def delete_user(user_id: str, reason: Optional[str] = Query(None)):
         # Enviar email ANTES de eliminar (depois ja nao temos os dados)
         if user_email and reason:
             html = get_account_action_email_template("delete", reason, user_name)
-            await send_email_via_brevo(user_email, "Conta Eliminada - Eye Web", html)
+            await send_email_via_brevo(user_email, "Account Deleted - Eye Web", html)
         
         # Eliminar perfil
         supabase.table("profiles").delete().eq("id", user_id).execute()
@@ -1044,7 +1044,7 @@ async def update_user_name(request: UserNameUpdateRequest):
         # Enviar email de notificacao
         if user_email and request.reason:
             html = get_account_action_email_template("edit", request.reason, old_name or request.display_name)
-            await send_email_via_brevo(user_email, "Nome da Conta Alterado - Eye Web", html)
+            await send_email_via_brevo(user_email, "Account Name Changed - Eye Web", html)
         
         return {"success": True, "message": "Nome atualizado com sucesso."}
     except HTTPException:

@@ -78,6 +78,18 @@ function ChatWidgetInner() {
     sessionStorage.setItem('ewChatHistory', JSON.stringify([welcome]));
   }, []);
 
+  // ═══ ATUALIZAR CHAT QUANDO IDIOMA MUDA ═══
+  const prevLangRef = useRef(lang);
+  useEffect(() => {
+    if (prevLangRef.current !== lang) {
+      prevLangRef.current = lang;
+      // Reset chat com mensagem de boas-vindas no novo idioma
+      const welcome: ChatMsg = { text: t('chat.welcome'), type: 'ew-bot' };
+      setMessages([welcome]);
+      sessionStorage.setItem('ewChatHistory', JSON.stringify([welcome]));
+    }
+  }, [lang, t]);
+
   // Guardar historico sempre que muda
   useEffect(() => {
     if (messages.length > 0) {

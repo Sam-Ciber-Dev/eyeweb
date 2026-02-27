@@ -250,7 +250,7 @@ async def send_verification_email(email: str, code: str) -> bool:
                 json={
                     "from": "Eye Web <onboarding@resend.dev>",  # Email padrão do Resend
                     "to": [email],
-                    "subject": f"🔐 Código de Verificação Eye Web: {code}",
+                    "subject": f"🔐 Eye Web Verification Code: {code}",
                     "html": html_content
                 }
             )
@@ -279,7 +279,7 @@ def get_email_template(code: str) -> str:
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Código de Verificação - Eye Web</title>
+        <title>Verification Code - Eye Web</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0a0a0a; padding: 40px 20px;">
@@ -298,11 +298,11 @@ def get_email_template(code: str) -> str:
                         <tr>
                             <td style="padding: 32px;">
                                 <h2 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: #ffffff; text-align: center;">
-                                    Código de Verificação
+                                    Verification Code
                                 </h2>
                                 
                                 <p style="margin: 0 0 24px; font-size: 15px; color: #888888; text-align: center; line-height: 1.5;">
-                                    Usa o código abaixo para completar o teu login. Este código expira em <strong style="color: #ffffff;">5 minutos</strong>.
+                                    Use the code below to complete your login. This code expires in <strong style="color: #ffffff;">5 minutes</strong>.
                                 </p>
                                 
                                 <!-- Code Box -->
@@ -315,7 +315,7 @@ def get_email_template(code: str) -> str:
                                 <!-- Security Notice -->
                                 <div style="background-color: #1a1a1a; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
                                     <p style="margin: 0; font-size: 13px; color: #888888; text-align: center;">
-                                        🔒 Se não foste tu a pedir este código, ignora este email.
+                                        🔒 If you didn't request this code, please ignore this email.
                                     </p>
                                 </div>
                             </td>
@@ -328,7 +328,7 @@ def get_email_template(code: str) -> str:
                                     EyeWeb: Let's keep an eye on each other.
                                 </p>
                                 <p style="margin: 0; font-size: 12px; text-align: center;">
-                                    <a href="https://eyeweb.vercel.app" style="color: #ff0000; text-decoration: none;">Link para o Eye Web</a>
+                                    <a href="https://eyeweb.vercel.app" style="color: #ff0000; text-decoration: none;">Go to Eye Web</a>
                                 </p>
                             </td>
                         </tr>
