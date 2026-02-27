@@ -63,11 +63,23 @@ function ChatWidgetInner() {
   // ═══ PERSISTENCIA (sessionStorage) ═══
   useEffect(() => {
     const saved = sessionStorage.getItem('ewChatHistory');
+    const savedLang = sessionStorage.getItem('ewChatLang');
+    
+    // Se o idioma guardado é diferente do atual, resetar com mensagem no idioma certo
+    if (savedLang && savedLang !== lang) {
+      const welcome: ChatMsg = { text: t('chat.welcome'), type: 'ew-bot' };
+      setMessages([welcome]);
+      sessionStorage.setItem('ewChatHistory', JSON.stringify([welcome]));
+      sessionStorage.setItem('ewChatLang', lang);
+      return;
+    }
+    
     if (saved) {
       try {
         const parsed: ChatMsg[] = JSON.parse(saved);
         if (parsed.length > 0) {
           setMessages(parsed);
+          sessionStorage.setItem('ewChatLang', lang);
           return;
         }
       } catch {}
@@ -76,18 +88,7 @@ function ChatWidgetInner() {
     const welcome: ChatMsg = { text: t('chat.welcome'), type: 'ew-bot' };
     setMessages([welcome]);
     sessionStorage.setItem('ewChatHistory', JSON.stringify([welcome]));
-  }, []);
-
-  // ═══ ATUALIZAR CHAT QUANDO IDIOMA MUDA ═══
-  const prevLangRef = useRef(lang);
-  useEffect(() => {
-    if (prevLangRef.current !== lang) {
-      prevLangRef.current = lang;
-      // Reset chat com mensagem de boas-vindas no novo idioma
-      const welcome: ChatMsg = { text: t('chat.welcome'), type: 'ew-bot' };
-      setMessages([welcome]);
-      sessionStorage.setItem('ewChatHistory', JSON.stringify([welcome]));
-    }
+    sessionStorage.setItem('ewChatLang', lang);
   }, [lang, t]);
 
   // Guardar historico sempre que muda

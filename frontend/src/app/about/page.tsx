@@ -217,7 +217,7 @@ export default function AboutPage() {
       <div className="about-page">
         {/* ─── Hero ─── */}
         <section className="about-hero">
-          <h1>EyeWeb</h1>
+          <h1>Eye Web</h1>
         </section>
 
         {/* ─── Stats Bar ─── */}
