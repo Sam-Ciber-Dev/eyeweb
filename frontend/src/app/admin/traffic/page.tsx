@@ -119,7 +119,32 @@ interface DetailedLogEntry {
   auto_blocked: boolean;
 }
 
-type Tab = 'dashboard' | 'logs' | 'detailed' | 'blocked';
+type Tab = 'dashboard' | 'logs' | 'detailed' | 'blocked' | 'reports';
+
+interface ReportSummary {
+  id: number;
+  type: 'monthly' | 'yearly';
+  period: string;
+  title: string;
+  created_at: string;
+}
+
+interface ReportFull {
+  id: number;
+  type: 'monthly' | 'yearly';
+  period: string;
+  title: string;
+  markdown: string;
+  data: ChartData & {
+    daily_requests?: { date: string; requests: number }[];
+    top_paths?: { path: string; count: number }[];
+    unique_ips?: number;
+    total_requests?: number;
+    total_threats?: number;
+    total_blocks?: number;
+  };
+  created_at: string;
+}
 
 // ─── Chart color palette ───
 const CHART_COLORS = ['#ff0000', '#ff4444', '#ff6666', '#ff8888', '#cc0000', '#990000', '#ff2222', '#dd3333'];
@@ -205,6 +230,12 @@ export default function TrafficMonitorPage() {
   // Dashboard chart data
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
+
+  // Reports
+  const [reportsList, setReportsList] = useState<ReportSummary[]>([]);
+  const [selectedReport, setSelectedReport] = useState<ReportFull | null>(null);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   // ─── HELPER: Parse auto-block reason into simple + detail ───
   const parseAutoReason = (reason: string): { simple: string; detail: string } => {
@@ -302,6 +333,92 @@ export default function TrafficMonitorPage() {
     }
   }, []);
 
+  const fetchReports = useCallback(async () => {
+    try {
+      setReportsLoading(true);
+      const headers = await getAuthHeaders();
+      const r = await fetch(`${API}/api/admin/traffic/reports`, { headers });
+      if (r.ok) {
+        const data = await r.json();
+        const list = data.reports || [];
+        setReportsList(list);
+
+        // Auto-gerar relatório do mês atual se a lista estiver vazia
+        if (list.length === 0) {
+          try {
+            const gen = await fetch(`${API}/api/admin/traffic/reports/generate-current`, {
+              method: 'POST',
+              headers,
+            });
+            if (gen.ok) {
+              const r2 = await fetch(`${API}/api/admin/traffic/reports`, { headers });
+              if (r2.ok) {
+                const d2 = await r2.json();
+                setReportsList(d2.reports || []);
+              }
+            }
+          } catch { /* ignore auto-gen failure */ }
+        }
+      }
+    } catch {
+      console.error('Erro ao carregar relatórios');
+    } finally {
+      setReportsLoading(false);
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleViewReport = async (period: string) => {
+    try {
+      setReportsLoading(true);
+      const headers = await getAuthHeaders();
+      const r = await fetch(`${API}/api/admin/traffic/reports/${period}`, { headers });
+      if (r.ok) {
+        setSelectedReport(await r.json());
+      }
+    } catch {
+      console.error('Erro ao carregar relatório');
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const handleDownloadReport = async (period: string) => {
+    try {
+      const headers = await getAuthHeaders();
+      const r = await fetch(`${API}/api/admin/traffic/reports/${period}/download`, { headers });
+      if (r.ok) {
+        const blob = await r.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `relatorio_${period.replace('-', '_')}.md`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch {
+      console.error('Erro ao descarregar relatório');
+    }
+  };
+
+  const handleGenerateCurrentReport = async () => {
+    try {
+      setGeneratingReport(true);
+      const headers = await getAuthHeaders();
+      const r = await fetch(`${API}/api/admin/traffic/reports/generate-current`, {
+        method: 'POST',
+        headers,
+      });
+      if (r.ok) {
+        await fetchReports();
+      }
+    } catch {
+      console.error('Erro ao gerar relatório');
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   // ─── EFFECTS ─────────────────────────────────────────
 
   // Initial load
@@ -316,12 +433,13 @@ export default function TrafficMonitorPage() {
     if (activeTab === 'dashboard') fetchChartData();
     else if (activeTab === 'logs') fetchConnections();
     else if (activeTab === 'detailed') fetchDetailedLogs();
+    else if (activeTab === 'reports') { fetchReports(); setSelectedReport(null); }
     else fetchBlocked();
-  }, [activeTab, fetchChartData, fetchConnections, fetchDetailedLogs, fetchBlocked]);
+  }, [activeTab, fetchChartData, fetchConnections, fetchDetailedLogs, fetchBlocked, fetchReports]);
 
-  // Auto-refresh
+  // Auto-refresh (no auto-refresh for reports)
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (!autoRefresh || activeTab === 'reports') return;
     const ms = activeTab === 'dashboard' ? 15000 : activeTab === 'logs' ? 5000 : activeTab === 'detailed' ? 3000 : 10000;
     const interval = setInterval(() => {
       fetchStats();
@@ -681,6 +799,13 @@ export default function TrafficMonitorPage() {
         >
           <i className="fa-solid fa-ban"></i>
           <span>Bloqueados</span>
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`}
+          onClick={() => setActiveTab('reports')}
+        >
+          <i className="fa-solid fa-file-lines"></i>
+          <span>Relatórios</span>
         </button>
       </div>
 
@@ -1380,6 +1505,304 @@ export default function TrafficMonitorPage() {
             <div className="empty-state">
               <i className="fa-solid fa-unlock"></i>
               <p>Nenhum dispositivo ou IP bloqueado</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* TAB 5: RELATÓRIOS (Mensais / Anuais)           */}
+      {/* ═══════════════════════════════════════════════ */}
+      {!isLoading && activeTab === 'reports' && (
+        <div className="reports-container">
+          {/* Header com botão gerar */}
+          <div className="reports-header">
+            <h3>Relatórios de Tráfego</h3>
+            <button
+              className="btn-generate-report"
+              onClick={handleGenerateCurrentReport}
+              disabled={generatingReport}
+            >
+              {generatingReport ? (
+                <><i className="fa-solid fa-spinner fa-spin"></i> A gerar...</>
+              ) : (
+                <><i className="fa-solid fa-rotate"></i> Gerar/Atualizar Mês Atual</>
+              )}
+            </button>
+          </div>
+
+          {selectedReport ? (
+            /* ─── Vista de relatório individual ─── */
+            <div className="report-detail">
+              <button className="btn-back-reports" onClick={() => setSelectedReport(null)}>
+                <i className="fa-solid fa-arrow-left"></i> Voltar à Lista
+              </button>
+              <div className="report-detail-header">
+                <h3>{selectedReport.title}</h3>
+                <button
+                  className="btn-download-report"
+                  onClick={() => handleDownloadReport(selectedReport.period)}
+                >
+                  <i className="fa-solid fa-download"></i> Download .md
+                </button>
+              </div>
+
+              {/* Dashboard com dados do relatório */}
+              {selectedReport.data && (
+                <div className="report-dashboard">
+                  {/* Resumo */}
+                  <div className="report-summary-grid">
+                    <div className="report-stat">
+                      <span className="report-stat-value">{selectedReport.data.total_requests ?? 0}</span>
+                      <span className="report-stat-label">Total Requests</span>
+                    </div>
+                    <div className="report-stat">
+                      <span className="report-stat-value">{selectedReport.data.unique_ips ?? 0}</span>
+                      <span className="report-stat-label">IPs Únicos</span>
+                    </div>
+                    <div className="report-stat">
+                      <span className="report-stat-value">{selectedReport.data.total_threats ?? 0}</span>
+                      <span className="report-stat-label">Ameaças</span>
+                    </div>
+                    <div className="report-stat">
+                      <span className="report-stat-value">{selectedReport.data.total_blocks ?? 0}</span>
+                      <span className="report-stat-label">Bloqueios</span>
+                    </div>
+                    <div className="report-stat">
+                      <span className="report-stat-value">{selectedReport.data.vpn_stats?.vpn ?? 0}</span>
+                      <span className="report-stat-label">VPN</span>
+                    </div>
+                    <div className="report-stat">
+                      <span className="report-stat-value">{selectedReport.data.vpn_stats?.direct ?? 0}</span>
+                      <span className="report-stat-label">Diretas</span>
+                    </div>
+                  </div>
+
+                  {/* Gráficos */}
+                  <div className="chart-grid">
+                    {/* Requests por hora */}
+                    {selectedReport.data.hourly_requests && selectedReport.data.hourly_requests.length > 0 && (
+                      <div className="chart-card">
+                        <h4>Requests por Hora</h4>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <AreaChart data={selectedReport.data.hourly_requests}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                            <XAxis dataKey="hour" stroke="#666" fontSize={11} />
+                            <YAxis stroke="#666" fontSize={11} />
+                            <Tooltip contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }} />
+                            <Area type="monotone" dataKey="requests" stroke="#ff0000" fill="rgba(255,0,0,0.15)" strokeWidth={2} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Requests por dia */}
+                    {selectedReport.data.daily_requests && selectedReport.data.daily_requests.length > 0 && (
+                      <div className="chart-card">
+                        <h4>Requests por Dia</h4>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <BarChart data={selectedReport.data.daily_requests}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                            <XAxis dataKey="date" stroke="#666" fontSize={10} />
+                            <YAxis stroke="#666" fontSize={11} />
+                            <Tooltip contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }} />
+                            <Bar dataKey="requests" fill="#ff4444" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Top países */}
+                    {selectedReport.data.top_countries && selectedReport.data.top_countries.length > 0 && (
+                      <div className="chart-card">
+                        <h4>Top Países</h4>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <BarChart data={selectedReport.data.top_countries} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                            <XAxis type="number" stroke="#666" fontSize={11} />
+                            <YAxis dataKey="country" type="category" stroke="#666" fontSize={11} width={100} />
+                            <Tooltip contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }} />
+                            <Bar dataKey="requests" fill="#ff6666" radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Distribuição de ameaças */}
+                    {selectedReport.data.threat_distribution && selectedReport.data.threat_distribution.length > 0 && (
+                      <div className="chart-card">
+                        <h4>Distribuição de Ameaças</h4>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <PieChart>
+                            <Pie
+                              data={selectedReport.data.threat_distribution.map(t => ({ name: THREAT_LABELS[t.type] || t.type, count: t.count }))}
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={90}
+                              dataKey="count"
+                              nameKey="name"
+                              label={(props: PieLabelRenderProps) => {
+                                const n = props.name ?? '';
+                                const p = typeof props.percent === 'number' ? props.percent : 0;
+                                return `${n} ${(p * 100).toFixed(0)}%`;
+                              }}
+                              labelLine={false}
+                            >
+                              {selectedReport.data.threat_distribution.map((t, i) => (
+                                <Cell key={t.type} fill={THREAT_COLORS[t.type] || CHART_COLORS[i % CHART_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Métodos HTTP */}
+                    {selectedReport.data.methods && selectedReport.data.methods.length > 0 && (
+                      <div className="chart-card">
+                        <h4>Métodos HTTP</h4>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <BarChart data={selectedReport.data.methods}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                            <XAxis dataKey="method" stroke="#666" fontSize={11} />
+                            <YAxis stroke="#666" fontSize={11} />
+                            <Tooltip contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }} />
+                            <Bar dataKey="count" fill="#ff8888" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* VPN vs Direto */}
+                    {selectedReport.data.vpn_stats && (selectedReport.data.vpn_stats.vpn > 0 || selectedReport.data.vpn_stats.direct > 0) && (
+                      <div className="chart-card">
+                        <h4>VPN vs Direto</h4>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <PieChart>
+                            <Pie
+                              data={[
+                                { name: 'VPN', value: selectedReport.data.vpn_stats.vpn },
+                                { name: 'Direto', value: selectedReport.data.vpn_stats.direct },
+                              ]}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={90}
+                              dataKey="value"
+                              label={(props: PieLabelRenderProps) => {
+                                const n = props.name ?? '';
+                                const p = typeof props.percent === 'number' ? props.percent : 0;
+                                return `${n} ${(p * 100).toFixed(0)}%`;
+                              }}
+                            >
+                              <Cell fill="#ff4444" />
+                              <Cell fill="#444" />
+                            </Pie>
+                            <Tooltip contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }} />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Top endpoints */}
+                  {selectedReport.data.top_paths && selectedReport.data.top_paths.length > 0 && (
+                    <div className="report-table-section">
+                      <h4>Top Endpoints</h4>
+                      <table className="report-table">
+                        <thead>
+                          <tr><th>Path</th><th>Requests</th></tr>
+                        </thead>
+                        <tbody>
+                          {selectedReport.data.top_paths.map((p, i) => (
+                            <tr key={i}><td>{p.path}</td><td>{p.count}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ─── Lista de relatórios ─── */
+            <div className="reports-list">
+              {reportsLoading ? (
+                <div className="empty-state">
+                  <i className="fa-solid fa-spinner fa-spin"></i>
+                  <p>A carregar relatórios...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Relatórios anuais */}
+                  {reportsList.filter(r => r.type === 'yearly').length > 0 && (
+                    <div className="reports-section">
+                      <h4 className="reports-section-title">
+                        <i className="fa-solid fa-calendar"></i> Relatórios Anuais
+                      </h4>
+                      {reportsList.filter(r => r.type === 'yearly').map(report => (
+                        <div key={report.id} className="report-card">
+                          <div className="report-card-info">
+                            <span className="report-card-title">{report.title}</span>
+                            <span className="report-card-date">{new Date(report.created_at).toLocaleDateString('pt-PT')}</span>
+                          </div>
+                          <div className="report-card-actions">
+                            <button onClick={() => handleViewReport(report.period)} title="Ver dashboard">
+                              <i className="fa-solid fa-chart-pie"></i>
+                            </button>
+                            <button onClick={() => handleDownloadReport(report.period)} title="Download .md">
+                              <i className="fa-solid fa-download"></i>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Relatórios mensais */}
+                  <div className="reports-section">
+                    <h4 className="reports-section-title">
+                      <i className="fa-solid fa-calendar-days"></i> Relatórios Mensais
+                    </h4>
+                    {reportsList.filter(r => r.type === 'monthly').length === 0 ? (
+                      <div className="empty-state">
+                        <i className="fa-solid fa-file-circle-question"></i>
+                        <p>Nenhum relatório mensal disponível</p>
+                        <p style={{ color: 'var(--gray)', fontSize: '0.85rem' }}>
+                          Clica em &quot;Gerar/Atualizar Mês Atual&quot; para criar o primeiro relatório.
+                        </p>
+                      </div>
+                    ) : (
+                      reportsList.filter(r => r.type === 'monthly').map(report => {
+                        const now = new Date();
+                        const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                        const isCurrent = report.period === currentPeriod;
+                        return (
+                          <div key={report.id} className={`report-card ${isCurrent ? 'current' : ''}`}>
+                            <div className="report-card-info">
+                              <span className="report-card-title">
+                                {report.title}
+                                {isCurrent && <span className="report-badge-current">A decorrer</span>}
+                              </span>
+                              <span className="report-card-date">{new Date(report.created_at).toLocaleDateString('pt-PT')}</span>
+                            </div>
+                            <div className="report-card-actions">
+                              <button onClick={() => handleViewReport(report.period)} title="Ver dashboard">
+                                <i className="fa-solid fa-chart-pie"></i>
+                              </button>
+                              <button onClick={() => handleDownloadReport(report.period)} title="Download .md">
+                                <i className="fa-solid fa-download"></i>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

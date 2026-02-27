@@ -39,7 +39,7 @@ const RECOMMENDATIONS = {
   },
   compromised: {
     password: [
-      '⚠️ URGENTE: Altera a tua password imediatamente.',
+      'URGENTE: Altera a tua password imediatamente.',
       'Usa uma password única com pelo menos 12 caracteres.',
       'Considera usar um gestor de passwords.',
       'Ativa 2FA em todas as contas importantes.',
@@ -54,7 +54,7 @@ const RECOMMENDATIONS = {
       'Considera usar usernames diferentes para cada serviço.',
     ],
     credit_card: [
-      '🚨 CRÍTICO: Contacta o teu banco imediatamente.',
+      'CRÍTICO: Contacta o teu banco imediatamente.',
       'Pede o cancelamento/substituição do cartão.',
       'Monitoriza os extratos para movimentos suspeitos.',
       'Considera ativar alertas de transação.',
@@ -83,7 +83,7 @@ function InfoTooltip({ text }: { text: string }) {
       onMouseLeave={() => setShow(false)}
       onClick={() => setShow(!show)}
     >
-      <span className="info-icon">ℹ️</span>
+      <span className="info-icon" style={{ color: 'var(--danger)', fontStyle: 'italic', fontWeight: 'bold', fontSize: '0.85rem' }}>i*</span>
       {show && (
         <div className="info-tooltip">
           {text}
@@ -98,7 +98,7 @@ function DataExposedItem({ label, exposed, tooltip }: { label: string; exposed: 
     <div className={`data-exposed-item ${exposed ? 'exposed' : 'safe'}`}>
       <span className="data-label">{label}</span>
       <span className={`data-status ${exposed ? 'yes' : 'no'}`}>
-        {exposed ? '⚠️ Sim' : '✓ Não'}
+        {exposed ? 'Sim' : 'Não'}
       </span>
       <InfoTooltip text={tooltip} />
     </div>
@@ -147,14 +147,7 @@ export default function BreachResults({ found, breaches, type }: BreachResultsPr
     return (
       <div className="result-container">
         <div className="no-breaches">
-          <div className="icon">✅</div>
-          <span className="status-badge safe">Seguro</span>
-          <p>Nenhuma fuga de dados encontrada!</p>
-          <p style={{ color: 'var(--gray)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-            {type === 'email' 
-              ? 'O teu email não aparece nas bases de dados conhecidas.'
-              : 'O teu número não aparece nas bases de dados conhecidas.'}
-          </p>
+          <p style={{ fontSize: '0.95rem', color: 'var(--success)', fontWeight: 600 }}>Nenhuma fuga de dados encontrada no Dataset.</p>
         </div>
         
         {/* Recomendações para dados seguros */}
@@ -174,16 +167,12 @@ export default function BreachResults({ found, breaches, type }: BreachResultsPr
 
   return (
     <div className="result-container">
-      <span className="status-badge danger">
-        <i className="fa-solid fa-triangle-exclamation"></i> Comprometido
-      </span>
+      {/* Cabeçalho */}
+      <p style={{ fontSize: '1.1rem', color: 'var(--danger)', fontWeight: 600, marginBottom: '1rem' }}>
+        Dados encontrados em {breaches.length} fuga{breaches.length !== 1 ? 's' : ''}.
+      </p>
       
       {/* Lista de Breaches */}
-      <div className="section-header">
-        <h3>Encontrado em {breaches.length} fuga(s)</h3>
-        <InfoTooltip text={TOOLTIPS.breaches} />
-      </div>
-      
       {breaches.map((breach, idx) => (
         <div key={idx} className="breach-item">
           <h4>{breach.name}</h4>
@@ -194,7 +183,6 @@ export default function BreachResults({ found, breaches, type }: BreachResultsPr
       {/* Informação Relacionada */}
       <div className="section-header" style={{ marginTop: '1.5rem' }}>
         <h3>Informação Relacionada</h3>
-        <InfoTooltip text={TOOLTIPS.data_info} />
       </div>
       
       <div className="data-exposed-grid">

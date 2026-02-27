@@ -59,8 +59,10 @@ logger = logging.getLogger(__name__)
 
 async def _daily_logs_cleanup():
     """
-    Tarefa em background que apaga traffic_logs e traffic_suspicious
-    do dia anterior a cada meia-noite UTC.
+    Tarefa em background que:
+    1. A cada meia-noite UTC apaga traffic_logs e traffic_suspicious do dia anterior
+    2. No 1º dia do mês gera o relatório final do mês anterior
+    3. No 1º dia de Janeiro gera o relatório anual do ano anterior
     """
     while True:
         try:
@@ -71,8 +73,8 @@ async def _daily_logs_cleanup():
             logger.info(f"Limpeza de logs agendada para daqui a {wait_seconds:.0f}s (meia-noite UTC)")
             await asyncio.sleep(wait_seconds)
             
-            # Apagar registos do dia anterior (tudo antes de hoje 00:00 UTC)
-            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+            now = datetime.now(timezone.utc)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
             
             sb_url = os.getenv("SUPABASE_URL", "")
             sb_key = os.getenv("SUPABASE_SERVICE_KEY", "")
@@ -86,14 +88,83 @@ async def _daily_logs_cleanup():
                 "Content-Type": "application/json",
                 "Prefer": "return=minimal",
             }
-            
+            upsert_headers = {
+                "apikey": sb_key,
+                "Authorization": f"Bearer {sb_key}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates,return=minimal",
+            }
+
+            # ─── Gerar relatório mensal (no 1º dia do mês) ───
+            if now.day == 1:
+                try:
+                    from .routers.traffic_router import (
+                        _aggregate_period, _generate_markdown, MONTH_NAMES_PT,
+                    )
+                    # Mês anterior
+                    first_of_this = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    last_month_end = first_of_this.strftime('%Y-%m-%dT%H:%M:%SZ')
+                    if now.month == 1:
+                        last_month_start_dt = first_of_this.replace(year=now.year - 1, month=12)
+                    else:
+                        last_month_start_dt = first_of_this.replace(month=now.month - 1)
+                    last_month_start = last_month_start_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                    period = last_month_start_dt.strftime('%Y-%m')
+                    month_name = MONTH_NAMES_PT[last_month_start_dt.month]
+                    title = f"Relatório {month_name} {last_month_start_dt.year}"
+
+                    data = await _aggregate_period(last_month_start, last_month_end)
+                    if data:
+                        md = _generate_markdown(title, period, data)
+                        async with httpx.AsyncClient(timeout=15.0) as client:
+                            await client.post(
+                                f"{sb_url}/rest/v1/traffic_reports",
+                                headers=upsert_headers,
+                                json={"type": "monthly", "period": period, "title": title, "markdown": md, "data": data},
+                            )
+                        logger.info(f"Relatório mensal gerado: {period}")
+                except Exception as e:
+                    logger.error(f"Erro ao gerar relatório mensal: {e}")
+
+            # ─── Gerar relatório anual (1 Janeiro) ───
+            if now.month == 1 and now.day == 1:
+                try:
+                    from .routers.traffic_router import (
+                        _aggregate_period, _generate_markdown,
+                    )
+                    last_year = now.year - 1
+                    year_start = f"{last_year}-01-01T00:00:00Z"
+                    year_end = f"{now.year}-01-01T00:00:00Z"
+                    period_y = str(last_year)
+                    title_y = f"Relatório Anual {last_year}"
+
+                    data_y = await _aggregate_period(year_start, year_end)
+                    if data_y:
+                        md_y = _generate_markdown(title_y, period_y, data_y)
+                        async with httpx.AsyncClient(timeout=15.0) as client:
+                            await client.post(
+                                f"{sb_url}/rest/v1/traffic_reports",
+                                headers=upsert_headers,
+                                json={"type": "yearly", "period": period_y, "title": title_y, "markdown": md_y, "data": data_y},
+                            )
+                        logger.info(f"Relatório anual gerado: {period_y}")
+
+                    # Limpar relatórios mensais do ano passado (agora estão no anual)
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        await client.delete(
+                            f"{sb_url}/rest/v1/traffic_reports?type=eq.monthly&period=like.{last_year}-*",
+                            headers=headers,
+                        )
+                    logger.info(f"Relatórios mensais de {last_year} limpos")
+                except Exception as e:
+                    logger.error(f"Erro ao gerar relatório anual: {e}")
+
+            # ─── Apagar logs do dia anterior ───
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # Apagar traffic_logs anteriores a hoje
                 r1 = await client.delete(
                     f"{sb_url}/rest/v1/traffic_logs?created_at=lt.{today_start}",
                     headers=headers,
                 )
-                # Apagar traffic_suspicious anteriores a hoje
                 r2 = await client.delete(
                     f"{sb_url}/rest/v1/traffic_suspicious?created_at=lt.{today_start}",
                     headers=headers,

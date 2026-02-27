@@ -69,7 +69,7 @@ export default function PasswordChecker() {
   };
 
   const handleCheck = async () => {
-    if (!password.trim()) return;
+    if (!password.trim() || password.length < 4) return;
     
     setLoading(true);
     
@@ -165,7 +165,7 @@ export default function PasswordChecker() {
         type="button"
         className="btn"
         onClick={handleCheck}
-        disabled={!password.trim() || loading}
+        disabled={!password.trim() || password.length < 4 || loading}
         style={{ marginTop: '1rem' }}
       >
         {loading ? (
@@ -232,42 +232,19 @@ export default function PasswordChecker() {
                 }}
               ></i>
               <div>
-                <h4 style={{ 
+                <p style={{ 
                   color: datasetResult.found ? 'var(--danger)' : 'var(--success)',
-                  marginBottom: '0.25rem'
+                  fontSize: '1rem',
+                  fontWeight: 600
                 }}>
-                  Verificação no Dataset
-                </h4>
-                <p style={{ color: 'var(--gray)', fontSize: '0.9rem' }}>
-                  {datasetResult.found ? (
-                    <>
-                      <strong style={{ color: 'var(--danger)' }}>⚠️ ENCONTRADA!</strong> Esta password 
-                      aparece em bases de dados vazadas.
-                    </>
-                  ) : (
-                    <>
-                      <strong style={{ color: 'var(--success)' }}>✓ Segura</strong> - Esta password 
-                      não foi encontrada no nosso dataset de fugas.
-                    </>
-                  )}
+                  {datasetResult.found
+                    ? 'Password encontrada no Dataset!'
+                    : 'Palavra passe não encontrada no Dataset.'}
                 </p>
               </div>
             </div>
             
-            {datasetResult.found && (
-              <div style={{ 
-                marginTop: '1rem', 
-                padding: '0.75rem',
-                background: 'rgba(255, 107, 107, 0.15)',
-                borderRadius: '8px',
-              }}>
-                <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>
-                  <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '0.5rem' }}></i>
-                  <strong>ATENÇÃO:</strong> Esta password deve ser alterada IMEDIATAMENTE em todas 
-                  as contas onde a utilizas.
-                </p>
-              </div>
-            )}
+
           </div>
 
           {/* Sugestões de Melhoria */}
@@ -280,7 +257,6 @@ export default function PasswordChecker() {
                 marginBottom: '0.75rem',
                 color: 'var(--white)'
               }}>
-                <i className="fa-solid fa-lightbulb" style={{ color: 'var(--warning)' }}></i>
                 Sugestões de Melhoria
               </h4>
               <ul style={{ 

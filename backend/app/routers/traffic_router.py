@@ -500,6 +500,42 @@ async def get_suspicious_events(
 
 
 # ═══════════════════════════════════════════════════════
+# CLEAR OLD LOGS — apaga tudo antes de hoje (UTC)
+# ═══════════════════════════════════════════════════════
+
+
+@router.delete("/clear-old-logs")
+async def clear_old_logs():
+    """Apaga todos os registos de traffic_logs e traffic_suspicious anteriores a hoje (UTC)."""
+    url = _url()
+    hdrs = {**_headers(), "Prefer": "return=minimal"}
+    if not url:
+        raise HTTPException(500, "Supabase not configured")
+
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as c:
+            r1 = await c.delete(
+                f"{url}/rest/v1/traffic_logs?created_at=lt.{today_start}",
+                headers=hdrs,
+            )
+            r2 = await c.delete(
+                f"{url}/rest/v1/traffic_suspicious?created_at=lt.{today_start}",
+                headers=hdrs,
+            )
+        return {
+            "ok": True,
+            "traffic_logs_status": r1.status_code,
+            "traffic_suspicious_status": r2.status_code,
+        }
+    except Exception as e:
+        raise HTTPException(500, f"Erro ao limpar logs: {str(e)}")
+
+
+# ═══════════════════════════════════════════════════════
 # DETAILED LOGS — Wireshark-style unified timeline
 # ═══════════════════════════════════════════════════════
 
@@ -511,6 +547,7 @@ async def get_detailed_logs(
     """
     Wireshark-style unified timeline — merges traffic_logs + traffic_suspicious
     into a single chronological feed, newest first.
+    Only returns entries from today (UTC).
     Filtering (by IP / type) is done client-side for instant UX.
     """
     url = _url()
@@ -518,11 +555,17 @@ async def get_detailed_logs(
     if not url:
         raise HTTPException(500, "Supabase not configured")
 
+    # Only fetch today's entries (UTC)
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).strftime('%Y-%m-%dT%H:%M:%SZ')
+
     entries: list[dict] = []
 
-    # ─── Fetch traffic_logs (requests) ───
+    # ─── Fetch traffic_logs (requests) — today only ───
     q_logs = (
         f"{url}/rest/v1/traffic_logs?select=*"
+        f"&created_at=gte.{today_start}"
         f"&order=created_at.desc&limit={limit}"
         f"&ip=not.in.(127.0.0.1,::1,localhost)"
     )
@@ -556,9 +599,10 @@ async def get_detailed_logs(
     except Exception:
         pass
 
-    # ─── Fetch traffic_suspicious (threats) ───
+    # ─── Fetch traffic_suspicious (threats) — today only ───
     q_threats = (
         f"{url}/rest/v1/traffic_suspicious?select=*"
+        f"&created_at=gte.{today_start}"
         f"&order=created_at.desc&limit={limit}"
     )
     try:
@@ -864,6 +908,326 @@ async def get_chart_data():
         }
     except Exception as e:
         raise HTTPException(500, f"Erro ao agregar dados: {str(e)}")
+
+
+# ═══════════════════════════════════════════════════════
+# REPORTS — Relatórios mensais e anuais
+# ═══════════════════════════════════════════════════════
+
+MONTH_NAMES_PT = [
+    "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+]
+
+
+async def _aggregate_period(period_start: str, period_end: str) -> dict:
+    """Agrega dados de traffic_logs e traffic_suspicious para um período."""
+    url = _url()
+    hdrs = _headers()
+    if not url:
+        return {}
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as c:
+            r_logs = await c.get(
+                f"{url}/rest/v1/traffic_logs?select=created_at,country,is_vpn,method,ip,status_code,path"
+                f"&created_at=gte.{period_start}&created_at=lt.{period_end}"
+                f"&ip=not.in.(127.0.0.1,::1,localhost)"
+                f"&order=created_at.asc&limit=50000",
+                headers=hdrs,
+            )
+            r_threats = await c.get(
+                f"{url}/rest/v1/traffic_suspicious?select=event,severity,created_at,ip"
+                f"&created_at=gte.{period_start}&created_at=lt.{period_end}"
+                f"&order=created_at.asc&limit=50000",
+                headers=hdrs,
+            )
+            r_blocks = await c.get(
+                f"{url}/rest/v1/traffic_blocked_devices?select=created_at,reason"
+                f"&created_at=gte.{period_start}&created_at=lt.{period_end}"
+                f"&order=created_at.desc&limit=5000",
+                headers=hdrs,
+            )
+
+        logs = r_logs.json() if r_logs.status_code == 200 else []
+        threats = r_threats.json() if r_threats.status_code == 200 else []
+        blocks = r_blocks.json() if r_blocks.status_code == 200 else []
+
+        # Requests por hora (0-23)
+        hourly = [0] * 24
+        for log in logs:
+            try:
+                h = datetime.fromisoformat(log["created_at"].replace("Z", "+00:00")).hour
+                hourly[h] += 1
+            except Exception:
+                pass
+        hourly_data = [{"hour": f"{h:02d}:00", "requests": hourly[h]} for h in range(24)]
+
+        # Threats por hora
+        threats_hourly = [0] * 24
+        for t in threats:
+            try:
+                h = datetime.fromisoformat(t["created_at"].replace("Z", "+00:00")).hour
+                threats_hourly[h] += 1
+            except Exception:
+                pass
+        threats_hourly_data = [{"hour": f"{h:02d}:00", "threats": threats_hourly[h]} for h in range(24)]
+
+        # Distribuição de tipos de ameaça
+        threat_types: dict[str, int] = {}
+        for t in threats:
+            ev = t.get("event", "unknown")
+            threat_types[ev] = threat_types.get(ev, 0) + 1
+        threat_dist = [{"type": k, "count": v} for k, v in sorted(threat_types.items(), key=lambda x: -x[1])]
+
+        # Top países
+        countries: dict[str, int] = {}
+        for log in logs:
+            c_name = log.get("country", "Desconhecido") or "Desconhecido"
+            countries[c_name] = countries.get(c_name, 0) + 1
+        top_countries = [{"country": k, "requests": v} for k, v in sorted(countries.items(), key=lambda x: -x[1])[:10]]
+
+        # VPN vs Direto
+        vpn_count = sum(1 for log in logs if log.get("is_vpn"))
+        direct_count = len(logs) - vpn_count
+
+        # IPs únicos
+        unique_ips = len(set(log.get("ip", "") for log in logs if log.get("ip")))
+
+        # Métodos HTTP
+        methods: dict[str, int] = {}
+        for log in logs:
+            m = log.get("method", "GET")
+            methods[m] = methods.get(m, 0) + 1
+        methods_data = [{"method": k, "count": v} for k, v in sorted(methods.items(), key=lambda x: -x[1])]
+
+        # Requests por dia (para relatórios mensais/anuais)
+        daily: dict[str, int] = {}
+        for log in logs:
+            try:
+                d = datetime.fromisoformat(log["created_at"].replace("Z", "+00:00")).strftime("%Y-%m-%d")
+                daily[d] = daily.get(d, 0) + 1
+            except Exception:
+                pass
+        daily_data = [{"date": k, "requests": v} for k, v in sorted(daily.items())]
+
+        # Top paths
+        paths: dict[str, int] = {}
+        for log in logs:
+            p = log.get("path", "/")
+            paths[p] = paths.get(p, 0) + 1
+        top_paths = [{"path": k, "count": v} for k, v in sorted(paths.items(), key=lambda x: -x[1])[:15]]
+
+        return {
+            "hourly_requests": hourly_data,
+            "hourly_threats": threats_hourly_data,
+            "threat_distribution": threat_dist,
+            "top_countries": top_countries,
+            "vpn_stats": {"vpn": vpn_count, "direct": direct_count},
+            "methods": methods_data,
+            "unique_ips": unique_ips,
+            "total_requests": len(logs),
+            "total_threats": len(threats),
+            "total_blocks": len(blocks),
+            "daily_requests": daily_data,
+            "top_paths": top_paths,
+        }
+    except Exception:
+        return {}
+
+
+def _generate_markdown(title: str, period: str, data: dict) -> str:
+    """Gera relatório em Markdown a partir dos dados agregados."""
+    lines = [
+        f"# {title}",
+        f"**Período:** {period}",
+        f"**Gerado em:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
+        "",
+        "---",
+        "",
+        "## Resumo",
+        "",
+        f"| Métrica | Valor |",
+        f"|---------|-------|",
+        f"| Total de Requests | {data.get('total_requests', 0)} |",
+        f"| IPs Únicos | {data.get('unique_ips', 0)} |",
+        f"| Total de Ameaças | {data.get('total_threats', 0)} |",
+        f"| Dispositivos Bloqueados | {data.get('total_blocks', 0)} |",
+        f"| Conexões VPN | {data.get('vpn_stats', {}).get('vpn', 0)} |",
+        f"| Conexões Diretas | {data.get('vpn_stats', {}).get('direct', 0)} |",
+        "",
+        "## Top Países",
+        "",
+        "| País | Requests |",
+        "|------|----------|",
+    ]
+    for c in data.get("top_countries", []):
+        lines.append(f"| {c['country']} | {c['requests']} |")
+
+    lines += [
+        "",
+        "## Distribuição de Ameaças",
+        "",
+        "| Tipo | Ocorrências |",
+        "|------|-------------|",
+    ]
+    for t in data.get("threat_distribution", []):
+        lines.append(f"| {t['type']} | {t['count']} |")
+    if not data.get("threat_distribution"):
+        lines.append("| Nenhuma ameaça registada | 0 |")
+
+    lines += [
+        "",
+        "## Métodos HTTP",
+        "",
+        "| Método | Contagem |",
+        "|--------|----------|",
+    ]
+    for m in data.get("methods", []):
+        lines.append(f"| {m['method']} | {m['count']} |")
+
+    lines += [
+        "",
+        "## Top Endpoints",
+        "",
+        "| Path | Requests |",
+        "|------|----------|",
+    ]
+    for p in data.get("top_paths", []):
+        lines.append(f"| {p['path']} | {p['count']} |")
+
+    lines += [
+        "",
+        "## Requests por Dia",
+        "",
+        "| Data | Requests |",
+        "|------|----------|",
+    ]
+    for d in data.get("daily_requests", []):
+        lines.append(f"| {d['date']} | {d['requests']} |")
+
+    lines += ["", "---", f"*Eye Web Traffic Report — gerado automaticamente*"]
+    return "\n".join(lines)
+
+
+@router.get("/reports")
+async def get_reports():
+    """Lista todos os relatórios guardados (mensais e anuais)."""
+    url = _url()
+    hdrs = _headers()
+    if not url:
+        raise HTTPException(500, "Supabase not configured")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as c:
+            r = await c.get(
+                f"{url}/rest/v1/traffic_reports?select=id,type,period,title,created_at"
+                f"&order=period.desc",
+                headers=hdrs,
+            )
+        if r.status_code != 200:
+            return {"reports": []}
+        return {"reports": r.json()}
+    except Exception:
+        return {"reports": []}
+
+
+@router.get("/reports/{period}")
+async def get_report(period: str):
+    """Retorna relatório completo (markdown + dados para dashboard) de um período."""
+    url = _url()
+    hdrs = _headers()
+    if not url:
+        raise HTTPException(500, "Supabase not configured")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as c:
+            r = await c.get(
+                f"{url}/rest/v1/traffic_reports?period=eq.{period}&select=*&limit=1",
+                headers=hdrs,
+            )
+        if r.status_code != 200 or not r.json():
+            raise HTTPException(404, "Relatório não encontrado")
+        return r.json()[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@router.get("/reports/{period}/download")
+async def download_report(period: str):
+    """Retorna o markdown do relatório para download."""
+    from fastapi.responses import PlainTextResponse
+
+    url = _url()
+    hdrs = _headers()
+    if not url:
+        raise HTTPException(500, "Supabase not configured")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as c:
+            r = await c.get(
+                f"{url}/rest/v1/traffic_reports?period=eq.{period}&select=markdown&limit=1",
+                headers=hdrs,
+            )
+        if r.status_code != 200 or not r.json():
+            raise HTTPException(404, "Relatório não encontrado")
+
+        md = r.json()[0]["markdown"]
+        filename = f"relatorio_{period.replace('-', '_')}.md"
+        return PlainTextResponse(
+            content=md,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@router.post("/reports/generate-current")
+async def generate_current_month_report():
+    """Gera/atualiza o relatório do mês corrente (parcial — 'A decorrer')."""
+    now = datetime.now(timezone.utc)
+    period = now.strftime("%Y-%m")
+    month_name = MONTH_NAMES_PT[now.month]
+    title = f"Relatório {month_name} {now.year}"
+
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
+    # End = now (current moment)
+    month_end = now.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    data = await _aggregate_period(month_start, month_end)
+    if not data:
+        raise HTTPException(500, "Sem dados para agregar")
+
+    md = _generate_markdown(f"{title} (A decorrer)", period, data)
+
+    # Upsert no Supabase
+    url = _url()
+    hdrs = {**_headers(), "Prefer": "resolution=merge-duplicates,return=representation"}
+    payload = {
+        "type": "monthly",
+        "period": period,
+        "title": title,
+        "markdown": md,
+        "data": data,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as c:
+            r = await c.post(
+                f"{url}/rest/v1/traffic_reports",
+                headers=hdrs,
+                json=payload,
+            )
+        if r.status_code in (200, 201):
+            return {"ok": True, "period": period, "title": title}
+        return {"ok": False, "status": r.status_code, "detail": r.text}
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 # ═══════════════════════════════════════════════════════
