@@ -7,7 +7,7 @@ import ChatWidget from '@/components/ChatWidget'
 import PageTracker from '@/components/PageTracker'
 
 export const metadata: Metadata = {
-  title: 'Eye Web - Breach Checker',
+  title: 'Eye Web',
   description: 'Verifique se os seus dados foram expostos em fugas de dados. Ferramenta de cibersegurança com privacidade total usando K-Anonymity.',
   keywords: ['breach checker', 'data breach', 'cybersecurity', 'k-anonymity', 'email leak'],
 }

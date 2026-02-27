@@ -116,11 +116,11 @@ export default function AdminMFAPage() {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          // Tempo esgotado - limpar e voltar para home
+          // Tempo esgotado - limpar e voltar para login
           clearInterval(timer);
           sessionStorage.removeItem('admin_pending_email');
           sessionStorage.removeItem('admin_pending_password');
-          window.location.href = '/';
+          window.location.href = '/login';
           return 0;
         }
         return prev - 1;

@@ -89,12 +89,7 @@ export default function Navbar({ showLogin = true }: NavbarProps) {
                     <div className="dropdown-header">
                       <span className="dropdown-name">{getDisplayName()}</span>
                       <span className="dropdown-email">{user?.email}</span>
-                      {isAdmin && (
-                        <span className="dropdown-admin-badge">
-                          <i className="fa-solid fa-shield-halved"></i>
-                          Admin
-                        </span>
-                      )}
+
                     </div>
                     
                     <div className="dropdown-divider"></div>
@@ -111,7 +106,7 @@ export default function Navbar({ showLogin = true }: NavbarProps) {
                     {isAdmin && (
                       <Link 
                         href="/admin" 
-                        className="dropdown-item dropdown-item-admin"
+                        className="dropdown-item"
                         onClick={() => setDropdownOpen(false)}
                       >
                         <i className="fa-solid fa-gauge-high"></i>

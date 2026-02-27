@@ -85,10 +85,50 @@ def hash_url(url: str) -> str:
 
 
 def normalize_url(url: str) -> str:
-    """Normaliza URL para consistência."""
+    """Normaliza URL para consistencia, com validacao e sanitizacao."""
+    import re
+    from urllib.parse import urlparse, quote, unquote
+    
     url = url.strip()
+    
+    # Bloquear protocolos perigosos
+    dangerous = re.compile(r'^(javascript|data|vbscript|file|ftp|blob|about|chrome|moz-extension):', re.I)
+    if dangerous.match(url):
+        raise ValueError("Protocolo nao permitido")
+    
+    # Corrigir protocolos malformados (ht+ps, htps, htp, etc.)
+    malformed = re.compile(r'^h[t+]+p[s+]*://', re.I)
+    if malformed.match(url) and not re.match(r'^https?://', url, re.I):
+        url = re.sub(r'^[^/]+//', 'https://', url)
+    
+    # Rejeitar esquemas desconhecidos
+    if '://' in url and not re.match(r'^https?://', url, re.I):
+        raise ValueError("Protocolo invalido")
+    
+    # Adicionar https se nao existir
     if not url.startswith(('http://', 'https://')):
         url = 'https://' + url
+    
+    # Decodificar e re-codificar para normalizar encoding (previne payloads com double-encoding)
+    try:
+        url = unquote(url)
+    except Exception:
+        pass
+    
+    # Validar a estrutura
+    parsed = urlparse(url)
+    if not parsed.hostname:
+        raise ValueError("URL invalido: sem dominio")
+    
+    # Bloquear IPs privados/localhost
+    hostname = parsed.hostname.lower()
+    private_ip = re.compile(r'^(127\.|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|0\.0\.0\.0|localhost|\[::1\]|::1)')
+    if private_ip.match(hostname):
+        raise ValueError("Enderecos locais/privados nao permitidos")
+    
+    # Remover fragmentos (nunca enviados ao servidor, podem esconder payloads)
+    url = url.split('#')[0]
+    
     return url.rstrip('/')
 
 

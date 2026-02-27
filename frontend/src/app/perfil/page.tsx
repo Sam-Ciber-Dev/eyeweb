@@ -486,12 +486,7 @@ export default function PerfilPage() {
                 </button>
               </div>
               <p>{user?.email}</p>
-              {isAdmin && (
-                <span className="admin-badge">
-                  <i className="fa-solid fa-shield-halved"></i>
-                  Administrador
-                </span>
-              )}
+
             </div>
           </div>
 

@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
 import './traffic.css';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -114,7 +118,41 @@ interface DetailedLogEntry {
   auto_blocked: boolean;
 }
 
-type Tab = 'logs' | 'detailed' | 'blocked';
+type Tab = 'dashboard' | 'logs' | 'detailed' | 'blocked';
+
+// ─── Chart color palette ───
+const CHART_COLORS = ['#ff0000', '#ff4444', '#ff6666', '#ff8888', '#cc0000', '#990000', '#ff2222', '#dd3333'];
+const THREAT_COLORS: Record<string, string> = {
+  rate_limit: '#ff4444',
+  scanner: '#ff8800',
+  sql_injection: '#ff0000',
+  path_traversal: '#cc0000',
+  brute_force: '#ff2222',
+  recon_probe: '#ff6600',
+  suspicious_ua: '#ffaa00',
+};
+const THREAT_LABELS: Record<string, string> = {
+  rate_limit: 'Rate Limit',
+  scanner: 'Scanner',
+  sql_injection: 'SQL Injection',
+  path_traversal: 'Path Traversal',
+  brute_force: 'Brute Force',
+  recon_probe: 'Recon Probe',
+  suspicious_ua: 'UA Suspeito',
+};
+
+interface ChartData {
+  hourly_requests: { hour: string; requests: number }[];
+  hourly_threats: { hour: string; threats: number }[];
+  threat_distribution: { type: string; count: number }[];
+  top_countries: { country: string; requests: number }[];
+  vpn_stats: { vpn: number; direct: number };
+  methods: { method: string; count: number }[];
+  unique_ips_today: number;
+  total_requests_today: number;
+  total_threats_today: number;
+  recent_blocks: number;
+}
 
 // ═══════════════════════════════════════════════════════
 // COMPONENT
@@ -122,7 +160,7 @@ type Tab = 'logs' | 'detailed' | 'blocked';
 
 export default function TrafficMonitorPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>('logs');
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [connections, setConnections] = useState<Connection[]>([]);
   const [detailedLogs, setDetailedLogs] = useState<DetailedLogEntry[]>([]);
   const [blocked, setBlocked] = useState<BlockedIP[]>([]);
@@ -162,6 +200,10 @@ export default function TrafficMonitorPage() {
   const [editReasonFp, setEditReasonFp] = useState('');
   const [editReasonText, setEditReasonText] = useState('');
   const [editReasonSaving, setEditReasonSaving] = useState(false);
+
+  // Dashboard chart data
+  const [chartData, setChartData] = useState<ChartData | null>(null);
+  const [chartLoading, setChartLoading] = useState(false);
 
   // ─── HELPER: Parse auto-block reason into simple + detail ───
   const parseAutoReason = (reason: string): { simple: string; detail: string } => {
@@ -243,34 +285,52 @@ export default function TrafficMonitorPage() {
     }
   }, []);
 
+  const fetchChartData = useCallback(async () => {
+    try {
+      setChartLoading(true);
+      const headers = await getAuthHeaders();
+      const r = await fetch(`${API}/api/admin/traffic/chart-data`, { headers });
+      if (r.ok) {
+        setChartData(await r.json());
+      }
+    } catch {
+      console.error('Erro ao carregar dados do grafico');
+    } finally {
+      setChartLoading(false);
+      setIsLoading(false);
+    }
+  }, []);
+
   // ─── EFFECTS ─────────────────────────────────────────
 
   // Initial load
   useEffect(() => {
     fetchStats();
-    fetchConnections();
-  }, [fetchStats, fetchConnections]);
+    fetchChartData();
+  }, [fetchStats, fetchChartData]);
 
   // Tab change
   useEffect(() => {
     setIsLoading(true);
-    if (activeTab === 'logs') fetchConnections();
+    if (activeTab === 'dashboard') fetchChartData();
+    else if (activeTab === 'logs') fetchConnections();
     else if (activeTab === 'detailed') fetchDetailedLogs();
     else fetchBlocked();
-  }, [activeTab, fetchConnections, fetchDetailedLogs, fetchBlocked]);
+  }, [activeTab, fetchChartData, fetchConnections, fetchDetailedLogs, fetchBlocked]);
 
   // Auto-refresh
   useEffect(() => {
     if (!autoRefresh) return;
-    const ms = activeTab === 'logs' ? 5000 : activeTab === 'detailed' ? 3000 : 10000;
+    const ms = activeTab === 'dashboard' ? 15000 : activeTab === 'logs' ? 5000 : activeTab === 'detailed' ? 3000 : 10000;
     const interval = setInterval(() => {
       fetchStats();
-      if (activeTab === 'logs') fetchConnections();
+      if (activeTab === 'dashboard') fetchChartData();
+      else if (activeTab === 'logs') fetchConnections();
       else if (activeTab === 'detailed') fetchDetailedLogs();
       else fetchBlocked();
     }, ms);
     return () => clearInterval(interval);
-  }, [autoRefresh, activeTab, fetchStats, fetchConnections, fetchDetailedLogs, fetchBlocked]);
+  }, [autoRefresh, activeTab, fetchStats, fetchChartData, fetchConnections, fetchDetailedLogs, fetchBlocked]);
 
   // ─── ACTIONS ─────────────────────────────────────────
 
@@ -491,23 +551,39 @@ export default function TrafficMonitorPage() {
     return 'Request';
   };
 
-  // Filtered detailed logs (client-side filtering for instant UX)
-  const filteredDetailedLogs = detailedLogs.filter(entry => {
-    if (detailedFilter && !entry.ip.includes(detailedFilter)) return false;
-    if (detailedTypeFilter === 'request' && (entry._type !== 'request' || entry.method === 'PAGE')) return false;
-    if (detailedTypeFilter === 'visit' && !(entry._type === 'request' && entry.method === 'PAGE')) return false;
-    if (detailedTypeFilter === 'threat' && entry._type !== 'threat') return false;
-    return true;
-  });
-
   // Set of blocked IPs and fingerprints for quick lookup in logs tab
   const blockedIpSet = new Set([
     ...blocked.map(b => b.ip),
     ...blockedDevices.flatMap(d => d.associated_ips || []),
   ]);
   const blockedFpSet = new Set(blockedDevices.map(d => d.fingerprint_hash));
-  // Set of admin fingerprints (from connections data)
+  // Set of admin fingerprints AND IPs (from connections data)
   const adminFpSet = new Set(connections.filter(c => c.is_admin).map(c => c.fingerprint_hash));
+  const adminIpSet = new Set(connections.filter(c => c.is_admin).flatMap(c => c.ips));
+
+  // Standalone blocked IPs (not associated with any blocked device)
+  const deviceAssociatedIps = new Set(blockedDevices.flatMap(d => d.associated_ips || []));
+  const standaloneBlockedIps = blocked.filter(b => !deviceAssociatedIps.has(b.ip));
+  const adjustedBlockedTotal = blockedDevices.length + standaloneBlockedIps.length;
+
+  // Admin threat IPs to subtract from suspicious count
+  const adminThreatIps = new Set(
+    detailedLogs
+      .filter(e => e._type === 'threat' && adminIpSet.has(e.ip))
+      .map(e => e.ip)
+  );
+  const adjustedSuspiciousToday = Math.max(0, (stats?.suspicious_today || 0) - adminThreatIps.size);
+
+  // Filtered detailed logs (client-side filtering for instant UX)
+  const filteredDetailedLogs = detailedLogs.filter(entry => {
+    if (detailedFilter && !entry.ip.includes(detailedFilter)) return false;
+    if (detailedTypeFilter === 'request' && (entry._type !== 'request' || entry.method === 'PAGE')) return false;
+    if (detailedTypeFilter === 'visit' && !(entry._type === 'request' && entry.method === 'PAGE')) return false;
+    if (detailedTypeFilter === 'threat' && entry._type !== 'threat') return false;
+    // Task 9: Hide admin IPs from threats view when admin is logged in
+    if (entry._type === 'threat' && adminIpSet.has(entry.ip)) return false;
+    return true;
+  });
 
   // ─── RENDER ──────────────────────────────────────────
 
@@ -561,14 +637,14 @@ export default function TrafficMonitorPage() {
           <div className="stat-card stat-warning">
             <div className="stat-icon"><i className="fa-solid fa-triangle-exclamation"></i></div>
             <div className="stat-info">
-              <div className="stat-value">{stats.suspicious_today}</div>
+              <div className="stat-value">{adjustedSuspiciousToday}</div>
               <div className="stat-label">Suspeitos</div>
             </div>
           </div>
           <div className="stat-card stat-danger">
             <div className="stat-icon"><i className="fa-solid fa-ban"></i></div>
             <div className="stat-info">
-              <div className="stat-value">{stats.blocked_total}</div>
+              <div className="stat-value">{adjustedBlockedTotal}</div>
               <div className="stat-label">Bloqueados</div>
             </div>
           </div>
@@ -577,6 +653,13 @@ export default function TrafficMonitorPage() {
 
       {/* ═══ TABS ═══ */}
       <div className="traffic-tabs">
+        <button
+          className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dashboard')}
+        >
+          <i className="fa-solid fa-chart-area"></i>
+          <span>Dashboard</span>
+        </button>
         <button
           className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`}
           onClick={() => setActiveTab('logs')}
@@ -613,6 +696,233 @@ export default function TrafficMonitorPage() {
         <div className="traffic-loading">
           <i className="fa-solid fa-spinner fa-spin"></i>
           <span>A carregar dados...</span>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* TAB 0: DASHBOARD (Graficos e Estatisticas)     */}
+      {/* ═══════════════════════════════════════════════ */}
+      {!isLoading && activeTab === 'dashboard' && (
+        <div className="dashboard-content">
+          {chartLoading && !chartData ? (
+            <div className="traffic-loading">
+              <i className="fa-solid fa-spinner fa-spin"></i>
+              <span>A carregar dashboard...</span>
+            </div>
+          ) : chartData ? (
+            <>
+              {/* -- Summary Cards -- */}
+              <div className="dash-summary">
+                <div className="dash-summary-card">
+                  <div className="dash-summary-icon"><i className="fa-solid fa-globe"></i></div>
+                  <div className="dash-summary-value">{chartData.unique_ips_today}</div>
+                  <div className="dash-summary-label">IPs Unicos</div>
+                </div>
+                <div className="dash-summary-card">
+                  <div className="dash-summary-icon"><i className="fa-solid fa-arrow-right-arrow-left"></i></div>
+                  <div className="dash-summary-value">{chartData.total_requests_today.toLocaleString()}</div>
+                  <div className="dash-summary-label">Total Requests</div>
+                </div>
+                <div className="dash-summary-card dash-card-warn">
+                  <div className="dash-summary-icon"><i className="fa-solid fa-skull-crossbones"></i></div>
+                  <div className="dash-summary-value">{chartData.total_threats_today}</div>
+                  <div className="dash-summary-label">Ameacas</div>
+                </div>
+                <div className="dash-summary-card dash-card-danger">
+                  <div className="dash-summary-icon"><i className="fa-solid fa-shield-halved"></i></div>
+                  <div className="dash-summary-value">{chartData.recent_blocks}</div>
+                  <div className="dash-summary-label">Bloqueios Recentes</div>
+                </div>
+              </div>
+
+              {/* -- Row 1: Requests por Hora + Ameacas por Hora -- */}
+              <div className="dash-charts-row">
+                <div className="dash-chart-card dash-chart-wide">
+                  <h3 className="dash-chart-title">
+                    <i className="fa-solid fa-chart-area"></i>
+                    Requests por Hora (Hoje)
+                  </h3>
+                  <div className="dash-chart-body">
+                    <ResponsiveContainer width="100%" height={280}>
+                      <AreaChart data={chartData.hourly_requests}>
+                        <defs>
+                          <linearGradient id="gradReq" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#ff0000" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#ff0000" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+                        <XAxis dataKey="hour" stroke="#666" tick={{ fill: '#888', fontSize: 11 }} />
+                        <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 11 }} />
+                        <Tooltip
+                          contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }}
+                          labelStyle={{ color: '#ff0000' }}
+                        />
+                        <Area type="monotone" dataKey="requests" stroke="#ff0000" fill="url(#gradReq)" strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="dash-chart-card dash-chart-wide">
+                  <h3 className="dash-chart-title">
+                    <i className="fa-solid fa-triangle-exclamation"></i>
+                    Ameacas por Hora (Hoje)
+                  </h3>
+                  <div className="dash-chart-body">
+                    <ResponsiveContainer width="100%" height={280}>
+                      <BarChart data={chartData.hourly_threats}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+                        <XAxis dataKey="hour" stroke="#666" tick={{ fill: '#888', fontSize: 11 }} />
+                        <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 11 }} />
+                        <Tooltip
+                          contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }}
+                          labelStyle={{ color: '#ff4444' }}
+                        />
+                        <Bar dataKey="threats" fill="#ff4444" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              {/* -- Row 2: Tipos de Ameaca + Top Paises -- */}
+              <div className="dash-charts-row">
+                <div className="dash-chart-card">
+                  <h3 className="dash-chart-title">
+                    <i className="fa-solid fa-crosshairs"></i>
+                    Tipos de Ameaca
+                  </h3>
+                  <div className="dash-chart-body">
+                    {chartData.threat_distribution.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <PieChart>
+                          <Pie
+                            data={chartData.threat_distribution.map(t => ({
+                              ...t,
+                              name: THREAT_LABELS[t.type] || t.type,
+                            }))}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            dataKey="count"
+                            nameKey="name"
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            labelLine={false}
+                          >
+                            {chartData.threat_distribution.map((t, i) => (
+                              <Cell key={t.type} fill={THREAT_COLORS[t.type] || CHART_COLORS[i % CHART_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }}
+                          />
+                          <Legend
+                            wrapperStyle={{ color: '#888', fontSize: 12 }}
+                            formatter={(value: string) => <span style={{ color: '#ccc' }}>{value}</span>}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="dash-empty">Sem ameacas registadas hoje</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="dash-chart-card">
+                  <h3 className="dash-chart-title">
+                    <i className="fa-solid fa-earth-americas"></i>
+                    Top Paises
+                  </h3>
+                  <div className="dash-chart-body">
+                    {chartData.top_countries.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={chartData.top_countries} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+                          <XAxis type="number" stroke="#666" tick={{ fill: '#888', fontSize: 11 }} />
+                          <YAxis dataKey="country" type="category" width={90} stroke="#666" tick={{ fill: '#ccc', fontSize: 11 }} />
+                          <Tooltip
+                            contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }}
+                          />
+                          <Bar dataKey="requests" fill="#ff0000" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="dash-empty">Sem dados de paises</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* -- Row 3: VPN vs Direto + Metodos HTTP -- */}
+              <div className="dash-charts-row">
+                <div className="dash-chart-card">
+                  <h3 className="dash-chart-title">
+                    <i className="fa-solid fa-mask"></i>
+                    VPN vs Direto
+                  </h3>
+                  <div className="dash-chart-body">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'VPN', value: chartData.vpn_stats.vpn },
+                            { name: 'Direto', value: chartData.vpn_stats.direct },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          dataKey="value"
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          <Cell fill="#ff4444" />
+                          <Cell fill="#444" />
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }}
+                        />
+                        <Legend
+                          wrapperStyle={{ fontSize: 12 }}
+                          formatter={(value: string) => <span style={{ color: '#ccc' }}>{value}</span>}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="dash-chart-card">
+                  <h3 className="dash-chart-title">
+                    <i className="fa-solid fa-code"></i>
+                    Metodos HTTP
+                  </h3>
+                  <div className="dash-chart-body">
+                    {chartData.methods.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={chartData.methods}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+                          <XAxis dataKey="method" stroke="#666" tick={{ fill: '#ccc', fontSize: 12 }} />
+                          <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 11 }} />
+                          <Tooltip
+                            contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, color: '#fff' }}
+                          />
+                          <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                            {chartData.methods.map((m, i) => (
+                              <Cell key={m.method} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="dash-empty">Sem dados de metodos</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="dash-empty">Sem dados disponiveis para o dashboard</div>
+          )}
         </div>
       )}
 
@@ -883,10 +1193,15 @@ export default function TrafficMonitorPage() {
                     <td className="col-actions">
                       {(() => {
                         const fp = entry.fingerprint_hash || '';
-                        const isAdmin = fp ? adminFpSet.has(fp) : false;
+                        const isAdmin = (fp && adminFpSet.has(fp)) || adminIpSet.has(entry.ip);
                         const isBlocked = (fp && blockedFpSet.has(fp)) || blockedIpSet.has(entry.ip);
                         const isAutoBlocked = entry._type === 'threat' && entry.auto_blocked;
-                        if (isAdmin || isBlocked || isAutoBlocked) return null;
+                        if (isAdmin) return (
+                          <span className="admin-fp-icon" title="Administrador">
+                            <i className="fa-solid fa-shield-halved"></i>
+                          </span>
+                        );
+                        if (isBlocked || isAutoBlocked) return null;
                         // Build reason based on entry type
                         const reason = entry._type === 'threat'
                           ? `[Ameaça] ${getEventLabel(entry.event || '')}: ${entry.details || ''}`
@@ -1007,10 +1322,55 @@ export default function TrafficMonitorPage() {
             </>
           )}
 
-          {blockedDevices.length === 0 && (
+          {/* ─── Standalone Blocked IPs (not associated with any device) ─── */}
+          {standaloneBlockedIps.length > 0 && (
+            <>
+              <div className="blocked-section-header" style={{ marginTop: blockedDevices.length > 0 ? '24px' : '0' }}>
+                <span>IPs Bloqueados (sem dispositivo associado)</span>
+              </div>
+              <table className="traffic-table">
+                <thead>
+                  <tr>
+                    <th>IP</th>
+                    <th>País</th>
+                    <th>Motivo</th>
+                    <th>Bloqueado por</th>
+                    <th>Data</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {standaloneBlockedIps.map((b) => (
+                    <tr key={b.id}>
+                      <td><code className="ip-tag">{b.ip}</code></td>
+                      <td>{b.country || '—'}</td>
+                      <td className="col-reason">{b.reason || 'Sem motivo'}</td>
+                      <td>
+                        <span className="blocker-badge-plain">
+                          {b.blocked_by === 'system' ? 'Sis. Auto.' : 'Bloq. Manual'}
+                        </span>
+                      </td>
+                      <td className="col-time">{formatTime(b.created_at)}</td>
+                      <td className="col-actions">
+                        <button
+                          className="action-btn unblock-btn"
+                          onClick={() => handleUnblock(b.ip)}
+                          title="Desbloquear IP"
+                        >
+                          <i className="fa-solid fa-unlock"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {blockedDevices.length === 0 && standaloneBlockedIps.length === 0 && (
             <div className="empty-state">
               <i className="fa-solid fa-unlock"></i>
-              <p>Nenhum dispositivo bloqueado</p>
+              <p>Nenhum dispositivo ou IP bloqueado</p>
             </div>
           )}
         </div>

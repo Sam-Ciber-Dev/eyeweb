@@ -16,8 +16,11 @@ Documentação:
 import logging
 import time
 import asyncio
+import os
+from datetime import datetime, timezone, timedelta
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -51,6 +54,60 @@ logger = logging.getLogger(__name__)
 
 
 # ===========================================
+# LIMPEZA DIARIA DE LOGS (meia-noite UTC)
+# ===========================================
+
+async def _daily_logs_cleanup():
+    """
+    Tarefa em background que apaga traffic_logs e traffic_suspicious
+    do dia anterior a cada meia-noite UTC.
+    """
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            # Calcular proxima meia-noite UTC
+            tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            wait_seconds = (tomorrow - now).total_seconds()
+            logger.info(f"Limpeza de logs agendada para daqui a {wait_seconds:.0f}s (meia-noite UTC)")
+            await asyncio.sleep(wait_seconds)
+            
+            # Apagar registos do dia anterior (tudo antes de hoje 00:00 UTC)
+            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+            
+            sb_url = os.getenv("SUPABASE_URL", "")
+            sb_key = os.getenv("SUPABASE_SERVICE_KEY", "")
+            if not sb_url or not sb_key:
+                logger.warning("Supabase nao configurado, limpeza de logs ignorada")
+                continue
+            
+            headers = {
+                "apikey": sb_key,
+                "Authorization": f"Bearer {sb_key}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            }
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Apagar traffic_logs anteriores a hoje
+                r1 = await client.delete(
+                    f"{sb_url}/rest/v1/traffic_logs?created_at=lt.{today_start}",
+                    headers=headers,
+                )
+                # Apagar traffic_suspicious anteriores a hoje
+                r2 = await client.delete(
+                    f"{sb_url}/rest/v1/traffic_suspicious?created_at=lt.{today_start}",
+                    headers=headers,
+                )
+            
+            logger.info(f"Limpeza de logs concluida: traffic_logs={r1.status_code}, traffic_suspicious={r2.status_code}")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Erro na limpeza de logs: {e}")
+            await asyncio.sleep(60)  # Retry em 1 min se falhar
+
+
+# ===========================================
 # LIFECYCLE (STARTUP/SHUTDOWN)
 # ===========================================
 
@@ -77,13 +134,19 @@ async def lifespan(app: FastAPI):
     ts = TrafficService.get()
     await ts.init()
     
-    logger.info("✅ API pronta!")
+    # Iniciar tarefa de limpeza diária
+    cleanup_task = asyncio.create_task(_daily_logs_cleanup())
+    
+    logger.info("API pronta!")
     logger.info("="*50)
     
     yield  # Aplicação a correr
     
     # === SHUTDOWN ===
-    logger.info("👁️  Eye Web API a encerrar...")
+    logger.info("Eye Web API a encerrar...")
+    
+    # Cancelar tarefa de limpeza
+    cleanup_task.cancel()
     
     # Fechar cliente HTTP do serviço
     await service.close()

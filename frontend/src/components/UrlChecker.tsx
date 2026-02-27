@@ -21,10 +21,84 @@ export default function UrlChecker() {
   // Estado para tooltip
   const [showTooltip, setShowTooltip] = useState(false);
 
+  const sanitizeAndValidateUrl = (raw: string): { valid: boolean; cleaned: string; error?: string } => {
+    let input = raw.trim();
+    if (!input) return { valid: false, cleaned: '', error: 'URL vazio' };
+    
+    // Bloquear protocolos perigosos
+    const dangerousProtocols = /^(javascript|data|vbscript|file|ftp|blob|about|chrome|moz-extension):/i;
+    if (dangerousProtocols.test(input)) {
+      return { valid: false, cleaned: '', error: 'Protocolo nao permitido. Usa http:// ou https://' };
+    }
+    
+    // Corrigir protocolos malformados comuns (ht+ps, htps, htp, etc.)
+    const malformedProtocol = /^h[t+]+p[s+]*:\/\//i;
+    if (malformedProtocol.test(input) && !input.match(/^https?:\/\//i)) {
+      input = input.replace(/^[^/]+\/\//, 'https://');
+    }
+    
+    // Remover esquemas desconhecidos (qualquer coisa que nao seja http/https)
+    if (input.includes('://') && !input.match(/^https?:\/\//i)) {
+      return { valid: false, cleaned: '', error: 'Protocolo invalido. Usa http:// ou https://' };
+    }
+    
+    // Se nao tem protocolo, adicionar https://
+    if (!input.startsWith('http://') && !input.startsWith('https://')) {
+      input = 'https://' + input;
+    }
+    
+    // Auto-upgrade http para https para dominios conhecidos como seguros
+    const safeHttpDomains = ['youtube.com', 'www.youtube.com', 'google.com', 'www.google.com',
+      'facebook.com', 'www.facebook.com', 'twitter.com', 'www.twitter.com', 'x.com',
+      'instagram.com', 'www.instagram.com', 'linkedin.com', 'www.linkedin.com',
+      'github.com', 'www.github.com', 'reddit.com', 'www.reddit.com',
+      'wikipedia.org', 'en.wikipedia.org', 'pt.wikipedia.org', 'amazon.com', 'www.amazon.com'];
+    try {
+      const parsed = new URL(input);
+      if (parsed.protocol === 'http:' && safeHttpDomains.some(d => parsed.hostname === d || parsed.hostname.endsWith('.' + d))) {
+        input = input.replace(/^http:\/\//i, 'https://');
+      }
+    } catch {}
+    
+    // Validar com URL API
+    try {
+      const parsed = new URL(input);
+      // Deve ter hostname valido
+      if (!parsed.hostname || parsed.hostname.length < 1) {
+        return { valid: false, cleaned: '', error: 'URL invalido: sem dominio' };
+      }
+      // Hostname deve ter pelo menos um ponto (dominio.tld) ou ser localhost
+      if (!parsed.hostname.includes('.') && parsed.hostname !== 'localhost') {
+        return { valid: false, cleaned: '', error: 'URL invalido: dominio incompleto' };
+      }
+      // Bloquear IPs privados (127.x, 192.168.x, 10.x, 169.254.x, 0.0.0.0)
+      const privateIpRegex = /^(127\.|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|0\.0\.0\.0|localhost)/;
+      if (privateIpRegex.test(parsed.hostname)) {
+        return { valid: false, cleaned: '', error: 'Nao e possivel verificar enderecos locais/privados' };
+      }
+    } catch {
+      return { valid: false, cleaned: '', error: 'URL invalido. Verifica a formatacao.' };
+    }
+    
+    // Limitar tamanho
+    if (input.length > 2048) {
+      return { valid: false, cleaned: '', error: 'URL demasiado longo (maximo 2048 caracteres)' };
+    }
+    
+    return { valid: true, cleaned: input };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!url.trim()) return;
+    
+    // Validar e sanitizar URL
+    const validation = sanitizeAndValidateUrl(url);
+    if (!validation.valid) {
+      setError(validation.error || 'URL invalido');
+      return;
+    }
     
     // Reset estados
     setLoading(true);
@@ -42,7 +116,7 @@ export default function UrlChecker() {
       // Iniciar animação do Google
       setShowGoogleLoading(true);
       
-      const data = await checkUrlWithAI(url);
+      const data = await checkUrlWithAI(validation.cleaned);
       setResult(data);
       
       // Sequência de animações

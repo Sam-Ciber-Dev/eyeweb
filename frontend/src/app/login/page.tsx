@@ -164,6 +164,8 @@ function LoginContent() {
     const errorParam = searchParams.get('error');
     if (errorParam === 'admin_google_blocked') {
       setError('Administradores não podem usar login via Google. Por favor, usa as credenciais manuais.');
+    } else if (errorParam === 'account_banned') {
+      setError('A tua conta foi suspensa. Contacta o suporte se achares que é um erro.');
     } else if (errorParam === 'auth_failed') {
       setError('Erro na autenticação. Por favor, tenta novamente.');
     } else if (errorParam === 'no_account') {

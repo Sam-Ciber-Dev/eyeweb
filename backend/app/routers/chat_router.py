@@ -67,6 +67,7 @@ class AIRequest(BaseModel):
     context: Optional[List[Dict[str, Any]]] = None
     image_urls: Optional[List[str]] = None
     file_contents: Optional[List[Dict[str, str]]] = None  # [{"name": "file.txt", "content": "..."}]
+    intentional_services: Optional[List[str]] = None  # Servicos marcados como propositadamente offline
 
 
 class AIResponse(BaseModel):
@@ -87,12 +88,16 @@ class ChatHistoryResponse(BaseModel):
 # CONFIGURACAO IA
 # ===========================================
 
-def build_system_prompt(sender_name: str, health_summary: str = "", has_images: bool = False, has_files: bool = False) -> str:
+def build_system_prompt(sender_name: str, health_summary: str = "", has_images: bool = False, has_files: bool = False, traffic_summary: str = "") -> str:
     """Construir prompt de sistema dinamico com contexto do sender e estado dos servicos."""
     
     health_section = ""
     if health_summary:
-        health_section = f"""\n\n=== ESTADO ATUAL DOS SERVICOS ===\n{health_summary}\n=== FIM DO ESTADO ===\n\nQuando te perguntarem sobre o estado dos servicos, usa esta informacao para dar uma resposta precisa e detalhada.\nSe algum servico estiver offline ou degradado, alerta o admin e sugere que verifiquem.\n"""
+        health_section = f"""\n\n=== ESTADO ATUAL DOS SERVICOS ===\n{health_summary}\n=== FIM DO ESTADO ===\n\nQuando te perguntarem sobre o estado dos servicos, usa esta informacao para dar uma resposta precisa e detalhada.\nSe um servico estiver marcado como PROPOSITADO, significa que o admin decidiu que e normal estar offline/degradado — nao alertes nem sugiras correcao para esses.\nSe algum servico estiver offline ou degradado e NAO estiver marcado como propositado, alerta o admin e sugere que verifiquem.\n"""
+    
+    traffic_section = ""
+    if traffic_summary:
+        traffic_section = f"""\n\n=== MONITOR DE TRAFEGO ===\n{traffic_summary}\n=== FIM DO TRAFEGO ===\n\nQuando te perguntarem sobre trafego, IPs, ataques ou atividade suspeita, usa esta informacao.\nSe houver IPs suspeitos ou bloqueados, informa o admin com detalhes.\n"""
     
     # Capacidades de visao e ficheiros
     vision_section = ""
@@ -133,15 +138,16 @@ Regras:
 - Os admins da equipa sao: Samuka, Okscuna, e Vanina Kollen
 - Es parte da equipa Eye Web
 - Quando te perguntarem sobre o estado dos servicos, se tiveres dados abaixo, usa-os para responder com precisao
-- Se te perguntarem sobre trafego/ataques, diz que podem verificar no Monitor de Trafego
+- Se te perguntarem sobre trafego, IPs, ataques ou atividade suspeita, se tiveres dados de trafego abaixo, usa-os para responder com precisao
 - Se receberes imagens, analisa-as e descreve o que ves
 - Se receberes conteudo de ficheiros na mensagem, analisa-o e responde sobre ele
 - NUNCA digas que nao consegues ver imagens ou ler ficheiros quando os recebes
-{vision_section}{files_section}{health_section}"""
+{vision_section}{files_section}{health_section}{traffic_section}"""
 
 
-async def fetch_health_summary() -> str:
+async def fetch_health_summary(intentional_services: Optional[List[str]] = None) -> str:
     """Obter resumo do estado dos servicos para contexto da IA."""
+    intentional_set = set(intentional_services) if intentional_services else set()
     try:
         from .admin_router import health_check
         result = await health_check()
@@ -164,11 +170,107 @@ async def fetch_health_summary() -> str:
                 line += f" ({service.response_time_ms}ms)"
             if service.message:
                 line += f" - {service.message}"
+            if service.name in intentional_set and service.status in ("offline", "degraded"):
+                line += " [PROPOSITADO pelo admin]"
             lines.append(line)
         
         return "\n".join(lines)
     except Exception as e:
         return f"Nao foi possivel obter o estado dos servicos: {str(e)}"
+
+
+async def fetch_traffic_summary() -> str:
+    """Obter resumo do trafego para contexto da IA."""
+    try:
+        url = os.getenv("SUPABASE_URL", "")
+        key = os.getenv("SUPABASE_SERVICE_KEY", "")
+        if not url or not key:
+            return "Supabase nao configurado para trafego."
+        
+        headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+        }
+        count_headers = {**headers, "Prefer": "count=exact", "Range": "0-0"}
+        
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
+        
+        from ..services.traffic_service import TrafficService
+        ts = TrafficService.get()
+        
+        lines = []
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Stats
+            r1 = await client.get(
+                f"{url}/rest/v1/traffic_logs?select=id&created_at=gte.{today_start}&ip=not.in.(127.0.0.1,::1,localhost)",
+                headers=count_headers,
+            )
+            requests_today = 0
+            if r1.status_code == 200:
+                cr = r1.headers.get("content-range", "*/0")
+                total = cr.split("/")[-1]
+                requests_today = int(total) if total not in ("*", "") else 0
+            
+            online_count = ts.online_count()
+            
+            lines.append(f"Requests hoje: {requests_today}")
+            lines.append(f"Dispositivos online agora: {online_count}")
+            
+            # Blocked
+            r_blocked_ips = await client.get(
+                f"{url}/rest/v1/traffic_blocked_ips?select=id",
+                headers=count_headers,
+            )
+            r_blocked_devs = await client.get(
+                f"{url}/rest/v1/traffic_blocked_devices?select=id",
+                headers=count_headers,
+            )
+            blocked_ips = 0
+            blocked_devs = 0
+            if r_blocked_ips.status_code == 200:
+                cr = r_blocked_ips.headers.get("content-range", "*/0")
+                blocked_ips = int(cr.split("/")[-1]) if cr.split("/")[-1] not in ("*", "") else 0
+            if r_blocked_devs.status_code == 200:
+                cr = r_blocked_devs.headers.get("content-range", "*/0")
+                blocked_devs = int(cr.split("/")[-1]) if cr.split("/")[-1] not in ("*", "") else 0
+            lines.append(f"Total bloqueados: {blocked_ips} IPs + {blocked_devs} dispositivos")
+            
+            # Recent suspicious events (last 10)
+            r_sus = await client.get(
+                f"{url}/rest/v1/traffic_suspicious?select=ip,event,severity,path,country,city,created_at&order=created_at.desc&limit=10&created_at=gte.{today_start}",
+                headers=headers,
+            )
+            if r_sus.status_code == 200:
+                events = r_sus.json()
+                if events:
+                    lines.append(f"\nEventos suspeitos hoje: {len(events)} (ultimos)")
+                    for ev in events:
+                        ts_str = ev.get("created_at", "")[:19].replace("T", " ")
+                        lines.append(f"  - [{ev.get('severity','?')}] {ev.get('event','')} | IP: {ev.get('ip','')} | {ev.get('country','')}/{ev.get('city','')} | {ts_str}")
+                        if ev.get("path"):
+                            lines.append(f"    Path: {ev['path']}")
+                else:
+                    lines.append("Eventos suspeitos hoje: 0")
+            
+            # Recent blocked IPs (last 5)
+            r_blocked_list = await client.get(
+                f"{url}/rest/v1/traffic_blocked_ips?select=ip,reason,blocked_at&order=blocked_at.desc&limit=5",
+                headers=headers,
+            )
+            if r_blocked_list.status_code == 200:
+                blocked_list = r_blocked_list.json()
+                if blocked_list:
+                    lines.append(f"\nUltimos IPs bloqueados:")
+                    for b in blocked_list:
+                        lines.append(f"  - {b.get('ip','')} | Motivo: {b.get('reason','')} | {b.get('blocked_at','')[:19]}")
+        
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Nao foi possivel obter dados de trafego: {str(e)}"
 
 
 # ===========================================
@@ -355,13 +457,16 @@ async def chat_with_ai(req: AIRequest):
         )
     
     # Obter estado dos servicos para contexto da IA
-    health_summary = await fetch_health_summary()
+    health_summary = await fetch_health_summary(req.intentional_services)
+    
+    # Obter resumo de trafego para contexto da IA
+    traffic_summary = await fetch_traffic_summary()
     
     # Detetar se ha ficheiros
     has_files = bool(req.file_contents and len(req.file_contents) > 0)
     
-    # Construir prompt dinamico com contexto do sender, saude e capacidades
-    system_prompt = build_system_prompt(req.sender_name, health_summary, has_images=has_images, has_files=has_files)
+    # Construir prompt dinamico com contexto do sender, saude, trafego e capacidades
+    system_prompt = build_system_prompt(req.sender_name, health_summary, has_images=has_images, has_files=has_files, traffic_summary=traffic_summary)
     
     # Construir historico de contexto (ultimas mensagens)
     messages = [{"role": "system", "content": system_prompt}]

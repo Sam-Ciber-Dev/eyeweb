@@ -42,15 +42,15 @@ export default function AuthCallbackPage() {
         console.log('Callback: Processing user:', user.email);
 
         // ─── BLOQUEIO DE SEGURANÇA: Admins NÃO podem usar Google OAuth ───
-        if (user.email) {
+        // Nota: usamos o param 'flow' (definido pelo signInWithGoogle) em vez de
+        // app_metadata.provider, porque admins que criaram conta com email mantêm
+        // provider='email' mesmo quando fazem OAuth via Google.
+        if (user.email && (flow === 'login' || flow === 'signup')) {
           const adminCheck = await isAdminEmail(user.email);
           if (adminCheck) {
-            const isGoogleLogin = user.app_metadata?.provider === 'google';
-            if (isGoogleLogin) {
-              await supabase.auth.signOut({ scope: 'local' });
-              window.location.href = '/login?error=admin_google_blocked';
-              return;
-            }
+            await supabase.auth.signOut({ scope: 'local' });
+            window.location.href = '/login?error=admin_google_blocked';
+            return;
           }
         }
 

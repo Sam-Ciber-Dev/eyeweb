@@ -130,15 +130,21 @@ async def check_url_endpoint(request: URLCheckRequest):
     Verifica a segurança de um URL.
     """
     try:
-        # Validar URL básico
+        # Validar URL basico
         url = request.url.strip()
         if not url:
-            raise HTTPException(status_code=400, detail="URL não pode estar vazio")
+            raise HTTPException(status_code=400, detail="URL nao pode estar vazio")
         
         if len(url) > 2048:
-            raise HTTPException(status_code=400, detail="URL demasiado longo (máximo 2048 caracteres)")
+            raise HTTPException(status_code=400, detail="URL demasiado longo (maximo 2048 caracteres)")
         
-        logger.info(f"📨 URL check request: {url[:50]}...")
+        # Sanitizar — normalize_url faz validacao completa e levanta ValueError se invalido
+        try:
+            url = normalize_url(url)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
+        
+        logger.info(f"URL check request: {url[:50]}...")
         
         # Executar verificação
         result = await check_url(url, force_recheck=request.force_recheck)

@@ -755,6 +755,117 @@ async def update_device_reason(req: UpdateDeviceReasonRequest):
         raise HTTPException(500, str(e))
 
 
+@router.get("/chart-data")
+async def get_chart_data():
+    """Dados agregados para os graficos do dashboard de trafego.
+    Retorna: requests por hora (hoje), distribuicao de ameacas,
+    top paises, VPN vs direto, e timeline de bloqueios.
+    """
+    url = _url()
+    headers = _headers()
+    if not url:
+        raise HTTPException(500, "Supabase not configured")
+
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    try:
+        async with httpx.AsyncClient() as c:
+            # Todos os logs de hoje (para agregar por hora, pais, VPN)
+            r_logs = await c.get(
+                f"{url}/rest/v1/traffic_logs?select=created_at,country,is_vpn,method,ip"
+                f"&created_at=gte.{today_start}"
+                f"&ip=not.in.(127.0.0.1,::1,localhost)"
+                f"&order=created_at.asc&limit=5000",
+                headers=headers, timeout=10.0,
+            )
+            # Todos os eventos suspeitos de hoje
+            r_threats = await c.get(
+                f"{url}/rest/v1/traffic_suspicious?select=event,severity,created_at,ip"
+                f"&created_at=gte.{today_start}"
+                f"&order=created_at.asc&limit=2000",
+                headers=headers, timeout=10.0,
+            )
+            # Bloqueios recentes (ultimos 30)
+            r_blocks = await c.get(
+                f"{url}/rest/v1/traffic_blocked_devices?select=created_at,reason"
+                f"&order=created_at.desc&limit=30",
+                headers=headers, timeout=8.0,
+            )
+
+        logs = r_logs.json() if r_logs.status_code == 200 else []
+        threats = r_threats.json() if r_threats.status_code == 200 else []
+        blocks = r_blocks.json() if r_blocks.status_code == 200 else []
+
+        # ── Requests por hora (0-23) ──
+        hourly = [0] * 24
+        for log in logs:
+            try:
+                h = datetime.fromisoformat(log["created_at"].replace("Z", "+00:00")).hour
+                hourly[h] += 1
+            except Exception:
+                pass
+
+        hourly_data = [{"hour": f"{h:02d}:00", "requests": hourly[h]} for h in range(24)]
+
+        # ── Threats por hora ──
+        threats_hourly = [0] * 24
+        for t in threats:
+            try:
+                h = datetime.fromisoformat(t["created_at"].replace("Z", "+00:00")).hour
+                threats_hourly[h] += 1
+            except Exception:
+                pass
+
+        threats_hourly_data = [{"hour": f"{h:02d}:00", "threats": threats_hourly[h]} for h in range(24)]
+
+        # ── Distribuicao de tipos de ameaca ──
+        threat_types: dict[str, int] = {}
+        for t in threats:
+            ev = t.get("event", "unknown")
+            threat_types[ev] = threat_types.get(ev, 0) + 1
+
+        threat_dist = [{"type": k, "count": v} for k, v in sorted(threat_types.items(), key=lambda x: -x[1])]
+
+        # ── Top paises ──
+        countries: dict[str, int] = {}
+        for log in logs:
+            c_name = log.get("country", "Desconhecido") or "Desconhecido"
+            countries[c_name] = countries.get(c_name, 0) + 1
+
+        top_countries = [{"country": k, "requests": v} for k, v in sorted(countries.items(), key=lambda x: -x[1])[:10]]
+
+        # ── VPN vs Direto ──
+        vpn_count = sum(1 for log in logs if log.get("is_vpn"))
+        direct_count = len(logs) - vpn_count
+
+        # ── IPs unicos hoje ──
+        unique_ips = len(set(log.get("ip", "") for log in logs if log.get("ip")))
+
+        # ── Metodos HTTP ──
+        methods: dict[str, int] = {}
+        for log in logs:
+            m = log.get("method", "GET")
+            methods[m] = methods.get(m, 0) + 1
+
+        methods_data = [{"method": k, "count": v} for k, v in sorted(methods.items(), key=lambda x: -x[1])]
+
+        return {
+            "hourly_requests": hourly_data,
+            "hourly_threats": threats_hourly_data,
+            "threat_distribution": threat_dist,
+            "top_countries": top_countries,
+            "vpn_stats": {"vpn": vpn_count, "direct": direct_count},
+            "methods": methods_data,
+            "unique_ips_today": unique_ips,
+            "total_requests_today": len(logs),
+            "total_threats_today": len(threats),
+            "recent_blocks": len(blocks),
+        }
+    except Exception as e:
+        raise HTTPException(500, f"Erro ao agregar dados: {str(e)}")
+
+
 # ═══════════════════════════════════════════════════════
 # PUBLIC ENDPOINTS — sem autenticação (middleware / frontend beacon)
 # ═══════════════════════════════════════════════════════

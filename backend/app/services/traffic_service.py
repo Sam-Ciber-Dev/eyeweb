@@ -241,14 +241,14 @@ class TrafficService:
 
     def heartbeat(self, ip: str, fp: str = ""):
         """Record a heartbeat. Tracks by fingerprint when available, falls back to IP."""
-        if ip in self._LOCALHOST:
-            return  # Ignorar localhost — não conta como utilizador real
         now = time.time()
-        # Always track IP heartbeat (fallback for connections without FP)
-        self._heartbeats[ip] = now
-        # Track fingerprint heartbeat when available (per-device accuracy)
+        # Track fingerprint heartbeat even for localhost (per-device accuracy)
         if fp:
             self._heartbeats[f"fp:{fp}"] = now
+        if ip in self._LOCALHOST:
+            return  # Ignorar IP localhost para contagem de IPs
+        # Always track IP heartbeat (fallback for connections without FP)
+        self._heartbeats[ip] = now
         # Cleanup stale heartbeats (> 5 min)
         if len(self._heartbeats) > 10000:
             cutoff = now - 300

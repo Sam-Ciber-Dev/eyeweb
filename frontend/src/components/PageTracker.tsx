@@ -43,26 +43,39 @@ export default function PageTracker() {
     }).catch(() => {});
   }, [pathname]);
 
-  // ─── Gerar fingerprint e registar no backend (uma vez por sessão) ──
+  // ─── Gerar fingerprint e definir cookie (SEMPRE, incluindo admin) ──
   useEffect(() => {
-    // Não executar em rotas admin (admin não deve ser bloqueado pelo próprio sistema)
-    if (pathname.startsWith('/admin')) return;
-
-    async function initFingerprint() {
-      if (fpSent.current) return;
-      fpSent.current = true;
-
+    async function ensureFingerprint() {
       try {
-        // Verificar se já temos em cache (evita re-gerar em cada navegação)
         let fp = getCachedFingerprint();
         if (!fp) {
           fp = await generateFingerprint();
           cacheFingerprint(fp);
         }
-
-        // Definir cookies para o middleware poder ler
+        // Definir cookies para o middleware/heartbeat poder ler
         setFingerprintCookie(fp.hash);
         setHardwareFingerprintCookie(fp.hardwareHash);
+      } catch {
+        // Silenciar
+      }
+    }
+    ensureFingerprint();
+  }, []);
+
+  // ─── Registar fingerprint no backend (apenas não-admin, uma vez por sessão) ──
+  useEffect(() => {
+    if (pathname.startsWith('/admin')) return;
+
+    async function registerFingerprint() {
+      if (fpSent.current) return;
+      fpSent.current = true;
+
+      try {
+        let fp = getCachedFingerprint();
+        if (!fp) {
+          fp = await generateFingerprint();
+          cacheFingerprint(fp);
+        }
 
         // Registar no backend (inclui fuzzy matching contra dispositivos bloqueados)
         const r = await fetch('/api/register-fp', {
@@ -87,7 +100,7 @@ export default function PageTracker() {
       }
     }
 
-    initFingerprint();
+    registerFingerprint();
   }, [pathname]);
 
   // ─── Heartbeat periódico (20s) — manter estado online ──

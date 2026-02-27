@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import './health.css';
 
@@ -27,6 +27,20 @@ interface HealthCheckResponse {
   categories: Record<string, ServiceStatus[]>;
 }
 
+const INTENTIONAL_STORAGE_KEY = 'eyeweb_intentional_services';
+
+function loadIntentionalServices(): Set<string> {
+  try {
+    const raw = localStorage.getItem(INTENTIONAL_STORAGE_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch {}
+  return new Set();
+}
+
+function saveIntentionalServices(s: Set<string>) {
+  localStorage.setItem(INTENTIONAL_STORAGE_KEY, JSON.stringify([...s]));
+}
+
 export default function HealthMonitorPage() {
   const router = useRouter();
   const [healthData, setHealthData] = useState<HealthCheckResponse | null>(null);
@@ -35,6 +49,48 @@ export default function HealthMonitorPage() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  
+  // Serviços marcados como "propositado" pelo admin
+  const [intentionalServices, setIntentionalServices] = useState<Set<string>>(() => loadIntentionalServices());
+  const [openPopover, setOpenPopover] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Fechar popover ao clicar fora
+  useEffect(() => {
+    if (!openPopover) return;
+    const handleClick = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setOpenPopover(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [openPopover]);
+
+  const toggleIntentional = (serviceName: string) => {
+    setIntentionalServices(prev => {
+      const next = new Set(prev);
+      if (next.has(serviceName)) {
+        next.delete(serviceName);
+      } else {
+        next.add(serviceName);
+      }
+      saveIntentionalServices(next);
+      return next;
+    });
+    setOpenPopover(null);
+  };
+
+  // Calcular se todos os serviços problemáticos são intencionais
+  const allProblemsIntentional = healthData
+    ? healthData.services
+        .filter(s => s.status === 'degraded' || s.status === 'offline')
+        .every(s => intentionalServices.has(s.name))
+    : false;
+
+  const hasProblems = healthData
+    ? healthData.services.some(s => s.status === 'degraded' || s.status === 'offline')
+    : false;
 
   const fetchHealthData = useCallback(async () => {
     try {
@@ -101,6 +157,8 @@ export default function HealthMonitorPage() {
   };
 
   const getOverallStatusClass = (status: string) => {
+    // Se todos os problemas são intencionais, mostrar como healthy
+    if (hasProblems && allProblemsIntentional) return 'overall-healthy';
     switch (status) {
       case 'healthy': return 'overall-healthy';
       case 'degraded': return 'overall-degraded';
@@ -110,8 +168,10 @@ export default function HealthMonitorPage() {
   };
 
   const getOverallStatusText = (status: string) => {
+    // Se todos os problemas são intencionais, mostrar como operacional
+    if (hasProblems && allProblemsIntentional) return 'Todos os serviços a funcionar';
     switch (status) {
-      case 'healthy': return 'Sistemas operacionais';
+      case 'healthy': return 'Todos os serviços a funcionar';
       case 'degraded': return 'Alguns serviços com problemas';
       case 'critical': return 'Serviços críticos offline';
       default: return 'Estado desconhecido';
@@ -268,8 +328,13 @@ export default function HealthMonitorPage() {
                 
                 {isExpanded && (
                   <div className="category-services">
-                    {services.map((service, index) => (
-                      <div key={index} className={`service-item ${service.status}`}>
+                    {services.map((service, index) => {
+                      const isProblematic = service.status === 'degraded' || service.status === 'offline';
+                      const isIntentional = intentionalServices.has(service.name);
+                      const popoverOpen = openPopover === service.name;
+                      
+                      return (
+                      <div key={index} className={`service-item ${service.status} ${isProblematic && isIntentional ? 'intentional' : ''}`}>
                         <div className="service-main">
                           <div className="service-name">
                             {getStatusIcon(service.status)}
@@ -285,6 +350,18 @@ export default function HealthMonitorPage() {
                               >
                                 <i className="fa-solid fa-arrow-up-right-from-square"></i>
                               </a>
+                            )}
+                            {isProblematic && (
+                              <button
+                                className={`intentional-toggle-btn ${isIntentional ? 'is-intentional' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenPopover(popoverOpen ? null : service.name);
+                                }}
+                                title={isIntentional ? 'Marcado como propositado' : 'Marcar como propositado?'}
+                              >
+                                <i className={`fa-solid ${isIntentional ? 'fa-circle-info' : 'fa-circle-question'}`}></i>
+                              </button>
                             )}
                           </div>
                           <div className="service-time">
@@ -308,12 +385,46 @@ export default function HealthMonitorPage() {
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+      {/* ═══ MODAL INTENTIONAL ═══ */}
+      {openPopover && (
+        <div className="intentional-overlay" onClick={() => setOpenPopover(null)}>
+          <div className="intentional-modal" ref={popoverRef} onClick={(e) => e.stopPropagation()}>
+            <h3>
+              <i className="fa-solid fa-circle-info"></i>
+              Estado do Servico
+            </h3>
+            <p className="intentional-modal-service">{openPopover}</p>
+            <p className="intentional-modal-text">
+              {intentionalServices.has(openPopover)
+                ? 'Este servico esta marcado como inativo de forma propositada.'
+                : 'Este servico esta inativo ou degradado. Foi propositado?'}
+            </p>
+            <div className="intentional-modal-actions">
+              <button className="intentional-modal-btn cancel" onClick={() => setOpenPopover(null)}>
+                Fechar
+              </button>
+              {intentionalServices.has(openPopover) ? (
+                <button className="intentional-modal-btn remove" onClick={() => toggleIntentional(openPopover)}>
+                  <i className="fa-solid fa-times"></i>
+                  Remover marca
+                </button>
+              ) : (
+                <button className="intentional-modal-btn confirm" onClick={() => toggleIntentional(openPopover)}>
+                  <i className="fa-solid fa-check"></i>
+                  Sim, propositado
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

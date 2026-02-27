@@ -5,15 +5,27 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import './emails.css';
 
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 interface Subscriber {
+  id: string;
   email: string;
   display_name: string | null;
   subscribed_at: string | null;
 }
 
-interface SubscribersResponse {
-  total_subscribers: number;
-  subscribers: Subscriber[];
+interface BannedUser {
+  id: string;
+  email: string;
+  display_name: string | null;
+  banned_at: string | null;
+  created_at: string | null;
+}
+
+interface AdminEmail {
+  id: string;
+  email: string;
+  display_name: string | null;
 }
 
 interface BroadcastResponse {
@@ -25,38 +37,26 @@ interface BroadcastResponse {
   failed_emails: string[] | null;
 }
 
+type Tab = 'compose' | 'subscribers' | 'banned';
+
 export default function EmailManagerPage() {
   const router = useRouter();
   const { isAuthenticated, isAdmin, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'compose' | 'subscribers'>('compose');
+  const [activeTab, setActiveTab] = useState<Tab>('compose');
   
-  // Verificar MFA da sessão
   const isMfaVerified = () => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('mfa_verified') === 'true';
   };
   
-  // Redirecionar se não autenticado, não admin, ou MFA não verificado
   useEffect(() => {
     if (loading) return;
-    
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-    
-    if (!isAdmin) {
-      router.push('/perfil');
-      return;
-    }
-    
-    if (!isMfaVerified()) {
-      router.push('/admin/mfa');
-      return;
-    }
+    if (!isAuthenticated) { router.push('/login'); return; }
+    if (!isAdmin) { router.push('/perfil'); return; }
+    if (!isMfaVerified()) { router.push('/admin/mfa'); return; }
   }, [isAuthenticated, isAdmin, loading, router]);
   
-  // Estado do formulário
+  // ─── Compose State ───
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [testMode, setTestMode] = useState(true);
@@ -64,68 +64,147 @@ export default function EmailManagerPage() {
   const [sendResult, setSendResult] = useState<BroadcastResponse | null>(null);
   const [isFadingOut, setIsFadingOut] = useState(false);
   
-  // Estado dos subscritores
+  // ─── Admin Email Selector (Test Mode) ───
+  const [showAdminSelector, setShowAdminSelector] = useState(false);
+  const [adminEmails, setAdminEmails] = useState<AdminEmail[]>([]);
+  const [selectedAdminEmails, setSelectedAdminEmails] = useState<Set<string>>(new Set());
+  
+  // ─── Subscribers State ───
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [totalSubscribers, setTotalSubscribers] = useState(0);
   const [isLoadingSubscribers, setIsLoadingSubscribers] = useState(false);
   
-  // Carregar subscritores
+  // ─── Banned Users State ───
+  const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
+  const [isLoadingBanned, setIsLoadingBanned] = useState(false);
+  
+  // ─── Modals ───
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    type: 'ban' | 'unban' | 'delete';
+    userId: string;
+    email: string;
+    reason: string;
+  } | null>(null);
+  const [editModal, setEditModal] = useState<{
+    show: boolean;
+    userId: string;
+    email: string;
+    currentName: string;
+    newName: string;
+    reason: string;
+  } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  
+  // ─── Reason Options ───
+  const banReasons = [
+    'Violacao dos termos de servico',
+    'Comportamento abusivo ou assedio',
+    'Spam ou conteudo indesejado',
+    'Tentativa de acesso nao autorizado',
+    'Atividade suspeita ou fraudulenta',
+    'Uso indevido das ferramentas do site',
+    'Partilha de conteudo malicioso',
+  ];
+  const deleteReasons = [
+    'Pedido do utilizador',
+    'Conta inativa por periodo prolongado',
+    'Violacao grave dos termos de servico',
+    'Conta duplicada',
+    'Atividade suspeita ou fraudulenta',
+    'Spam ou abuso da plataforma',
+  ];
+  const editReasons = [
+    'Nome inapropriado ou ofensivo',
+    'Nome com informacao falsa',
+    'Pedido do utilizador',
+    'Correcao administrativa',
+    'Violacao dos termos de servico',
+  ];
+  
+  // ─── Data Loading ───
   const loadSubscribers = async () => {
     setIsLoadingSubscribers(true);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/admin/emails/subscribers`
-      );
-      
-      if (response.ok) {
-        const data: SubscribersResponse = await response.json();
-        setSubscribers(data.subscribers);
-        setTotalSubscribers(data.total_subscribers);
+      const r = await fetch(`${API}/api/admin/emails/subscribers`);
+      if (r.ok) {
+        const data = await r.json();
+        setSubscribers(data.subscribers || []);
+        setTotalSubscribers(data.total_subscribers || 0);
       }
-    } catch (error) {
-      console.error('Erro ao carregar subscritores:', error);
-    } finally {
-      setIsLoadingSubscribers(false);
-    }
+    } catch (e) { console.error('Erro ao carregar subscritores:', e); }
+    finally { setIsLoadingSubscribers(false); }
+  };
+  
+  const loadBannedUsers = async () => {
+    setIsLoadingBanned(true);
+    try {
+      const r = await fetch(`${API}/api/admin/users/banned`);
+      if (r.ok) {
+        const data = await r.json();
+        setBannedUsers(data.banned_users || []);
+      }
+    } catch (e) { console.error('Erro ao carregar banidos:', e); }
+    finally { setIsLoadingBanned(false); }
+  };
+  
+  const loadAdminEmails = async () => {
+    try {
+      const r = await fetch(`${API}/api/admin/users/admins`);
+      if (r.ok) {
+        const data = await r.json();
+        setAdminEmails(data.admins || []);
+        // Pre-select all
+        setSelectedAdminEmails(new Set((data.admins || []).map((a: AdminEmail) => a.email)));
+      }
+    } catch (e) { console.error('Erro ao carregar admins:', e); }
   };
   
   useEffect(() => {
     loadSubscribers();
+    loadAdminEmails();
   }, []);
   
-  // Enviar email
+  useEffect(() => {
+    if (activeTab === 'banned') loadBannedUsers();
+  }, [activeTab]);
+  
+  // ─── Send Email ───
   const handleSendEmail = async () => {
     if (!subject.trim() || !message.trim()) {
       alert('Preenche o assunto e a mensagem');
       return;
     }
     
+    if (testMode) {
+      setShowAdminSelector(true);
+      return;
+    }
+    
+    await doSendEmail([]);
+  };
+  
+  const doSendEmail = async (testEmails: string[]) => {
     setIsSending(true);
     setSendResult(null);
     
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/admin/emails/broadcast`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            subject: subject.trim(),
-            message: message.trim(),
-            test_mode: testMode,
-          }),
-        }
-      );
+      const r = await fetch(`${API}/api/admin/emails/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: subject.trim(),
+          message: message.trim(),
+          test_mode: testMode,
+          test_emails: testMode ? testEmails : undefined,
+        }),
+      });
       
-      const data: BroadcastResponse = await response.json();
+      const data: BroadcastResponse = await r.json();
       setSendResult(data);
       
-      // Iniciar fade out após 1.5 segundos
       setTimeout(() => {
         setIsFadingOut(true);
-        // Limpar formulário após a animação (0.5s)
         setTimeout(() => {
           setSubject('');
           setMessage('');
@@ -133,8 +212,8 @@ export default function EmailManagerPage() {
           setIsFadingOut(false);
         }, 500);
       }, 1500);
-    } catch (error) {
-      console.error('Erro ao enviar email:', error);
+    } catch (e) {
+      console.error('Erro ao enviar email:', e);
       setSendResult({
         success: false,
         message: 'Erro de conexão ao servidor',
@@ -148,27 +227,115 @@ export default function EmailManagerPage() {
     }
   };
   
-  // Formatar data
+  // ─── User Actions ───
+  const handleBan = async (userId: string) => {
+    setActionLoading(true);
+    try {
+      const r = await fetch(`${API}/api/admin/users/ban`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, reason: confirmModal?.reason || undefined }),
+      });
+      if (r.ok) {
+        await loadSubscribers();
+        if (activeTab === 'banned') await loadBannedUsers();
+      } else {
+        const data = await r.json();
+        alert(data.detail || 'Erro ao banir utilizador');
+      }
+    } catch (e) { alert('Erro de conexão'); }
+    finally { setActionLoading(false); setConfirmModal(null); }
+  };
+  
+  const handleUnban = async (userId: string) => {
+    setActionLoading(true);
+    try {
+      const r = await fetch(`${API}/api/admin/users/unban`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (r.ok) {
+        await loadBannedUsers();
+        await loadSubscribers();
+      } else {
+        const data = await r.json();
+        alert(data.detail || 'Erro ao desbanir');
+      }
+    } catch (e) { alert('Erro de conexão'); }
+    finally { setActionLoading(false); setConfirmModal(null); }
+  };
+  
+  const handleDelete = async (userId: string) => {
+    setActionLoading(true);
+    try {
+      const reasonParam = confirmModal?.reason ? `?reason=${encodeURIComponent(confirmModal.reason)}` : '';
+      const r = await fetch(`${API}/api/admin/users/${userId}${reasonParam}`, { method: 'DELETE' });
+      if (r.ok) {
+        await loadSubscribers();
+        await loadBannedUsers();
+      } else {
+        const data = await r.json();
+        alert(data.detail || 'Erro ao eliminar');
+      }
+    } catch (e) { alert('Erro de conexão'); }
+    finally { setActionLoading(false); setConfirmModal(null); }
+  };
+  
+  const handleEditName = async () => {
+    if (!editModal || !editModal.newName.trim()) return;
+    setActionLoading(true);
+    try {
+      const r = await fetch(`${API}/api/admin/users/update-name`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: editModal.userId,
+          display_name: editModal.newName.trim(),
+          reason: editModal.reason || undefined,
+        }),
+      });
+      if (r.ok) {
+        await loadSubscribers();
+        if (activeTab === 'banned') await loadBannedUsers();
+      }
+    } catch (e) { alert('Erro de conexão'); }
+    finally { setActionLoading(false); setEditModal(null); }
+  };
+  
+  // ─── Helpers ───
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-PT', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Date(dateStr).toLocaleDateString('pt-PT', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
     });
   };
   
-  // Não mostrar nada enquanto verifica autenticação
-  if (loading || !isAuthenticated || !isAdmin || !isMfaVerified()) {
-    return null;
-  }
+  const allAdminsSelected = adminEmails.length > 0 && selectedAdminEmails.size === adminEmails.length;
+  
+  const toggleAdminEmail = (email: string) => {
+    setSelectedAdminEmails(prev => {
+      const next = new Set(prev);
+      if (next.has(email)) next.delete(email);
+      else next.add(email);
+      return next;
+    });
+  };
+  
+  const toggleAllAdmins = () => {
+    if (allAdminsSelected) {
+      setSelectedAdminEmails(new Set());
+    } else {
+      setSelectedAdminEmails(new Set(adminEmails.map(a => a.email)));
+    }
+  };
+  
+  if (loading || !isAuthenticated || !isAdmin || !isMfaVerified()) return null;
   
   return (
     <div className="emails-container">
-      {/* Botão Voltar - Canto superior esquerdo */}
+      {/* Back Button */}
       <div className="back-btn-wrapper">
         <button className="back-btn" onClick={() => router.push('/admin')}>
           <i className="fa-solid fa-arrow-left"></i>
@@ -192,52 +359,48 @@ export default function EmailManagerPage() {
       
       {/* Tabs */}
       <div className="emails-tabs">
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'compose' ? 'active' : ''}`}
           onClick={() => setActiveTab('compose')}
         >
           Escrever Email
         </button>
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'subscribers' ? 'active' : ''}`}
           onClick={() => setActiveTab('subscribers')}
         >
           Subscritores
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'banned' ? 'active' : ''}`}
+          onClick={() => setActiveTab('banned')}
+        >
+          Contas Banidas
+        </button>
       </div>
       
       {/* Content */}
       <div className="emails-content">
-        {activeTab === 'compose' ? (
+        
+        {/* ═══ TAB: COMPOSE ═══ */}
+        {activeTab === 'compose' && (
           <div className="compose-section">
             <div className="compose-card">
               <h2>Enviar E-mails</h2>
               
-              {/* Modo de envio */}
+              {/* Send Mode Toggle */}
               <div className="send-mode-toggle">
                 <label className={`mode-option ${testMode ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="sendMode"
-                    checked={testMode}
-                    onChange={() => setTestMode(true)}
-                  />
+                  <input type="radio" name="sendMode" checked={testMode} onChange={() => setTestMode(true)} />
                   <span>Modo Teste</span>
-                  <small>Envia apenas para ti</small>
                 </label>
                 <label className={`mode-option ${!testMode ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="sendMode"
-                    checked={!testMode}
-                    onChange={() => setTestMode(false)}
-                  />
-                  <span>Enviar a Todos</span>
-                  <small>Envia para todos os subscritores</small>
+                  <input type="radio" name="sendMode" checked={!testMode} onChange={() => setTestMode(false)} />
+                  <span>Enviar Novidades</span>
                 </label>
               </div>
               
-              {/* Formulário */}
+              {/* Form */}
               <div className="compose-form">
                 <div className="form-group">
                   <label htmlFor="subject">
@@ -272,7 +435,7 @@ export default function EmailManagerPage() {
                   </small>
                 </div>
                 
-                {/* Resultado */}
+                {/* Result */}
                 {sendResult && (
                   <div className={`send-result ${sendResult.success ? 'success' : 'error'} ${isFadingOut ? 'fade-out' : ''}`}>
                     <div className="result-content">
@@ -284,8 +447,8 @@ export default function EmailManagerPage() {
                   </div>
                 )}
                 
-                {/* Botão de enviar */}
-                <button 
+                {/* Send Button */}
+                <button
                   className="send-btn"
                   onClick={handleSendEmail}
                   disabled={isSending || !subject.trim() || !message.trim()}
@@ -311,16 +474,15 @@ export default function EmailManagerPage() {
               </div>
             </div>
           </div>
-        ) : (
+        )}
+        
+        {/* ═══ TAB: SUBSCRIBERS ═══ */}
+        {activeTab === 'subscribers' && (
           <div className="subscribers-section">
             <div className="subscribers-card">
               <div className="subscribers-header">
                 <h2>Lista de Subscritores</h2>
-                <button 
-                  className="refresh-btn"
-                  onClick={loadSubscribers}
-                  disabled={isLoadingSubscribers}
-                >
+                <button className="refresh-btn" onClick={loadSubscribers} disabled={isLoadingSubscribers}>
                   <i className={`fa-solid fa-rotate ${isLoadingSubscribers ? 'fa-spin' : ''}`}></i>
                 </button>
               </div>
@@ -344,20 +506,115 @@ export default function EmailManagerPage() {
                         <th>Email</th>
                         <th>Nome</th>
                         <th>Registado em</th>
+                        <th>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {subscribers.map((sub, index) => (
-                        <tr key={sub.email}>
+                        <tr key={sub.id || sub.email}>
                           <td className="row-number">{index + 1}</td>
-                          <td className="email-cell">
-                            {sub.email}
-                          </td>
+                          <td className="email-cell">{sub.email}</td>
                           <td className="name-cell">
                             {sub.display_name || <span className="no-name">Sem nome</span>}
                           </td>
-                          <td className="date-cell">
-                            {formatDate(sub.subscribed_at)}
+                          <td className="date-cell">{formatDate(sub.subscribed_at)}</td>
+                          <td className="actions-cell">
+                            <button
+                              className="action-icon-btn edit"
+                              title="Editar nome"
+                              onClick={() => setEditModal({
+                                show: true,
+                                userId: sub.id,
+                                email: sub.email,
+                                currentName: sub.display_name || '',
+                                newName: sub.display_name || '',
+                                reason: '',
+                              })}
+                            >
+                              <i className="fa-solid fa-pen"></i>
+                            </button>
+                            <button
+                              className="action-icon-btn delete"
+                              title="Eliminar conta"
+                              onClick={() => setConfirmModal({ show: true, type: 'delete', userId: sub.id, email: sub.email, reason: '' })}
+                            >
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
+                            <button
+                              className="action-icon-btn ban"
+                              title="Banir utilizador"
+                              onClick={() => setConfirmModal({ show: true, type: 'ban', userId: sub.id, email: sub.email, reason: '' })}
+                            >
+                              <i className="fa-solid fa-ban"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* ═══ TAB: BANNED ═══ */}
+        {activeTab === 'banned' && (
+          <div className="subscribers-section">
+            <div className="subscribers-card">
+              <div className="subscribers-header">
+                <h2>Contas Banidas</h2>
+                <button className="refresh-btn" onClick={loadBannedUsers} disabled={isLoadingBanned}>
+                  <i className={`fa-solid fa-rotate ${isLoadingBanned ? 'fa-spin' : ''}`}></i>
+                </button>
+              </div>
+              
+              {isLoadingBanned ? (
+                <div className="loading-state">
+                  <div className="spinner"></div>
+                  <p>A carregar...</p>
+                </div>
+              ) : bannedUsers.length === 0 ? (
+                <div className="empty-state">
+                  <i className="fa-solid fa-check-circle"></i>
+                  <p>Nenhuma conta banida</p>
+                </div>
+              ) : (
+                <div className="subscribers-table-wrapper">
+                  <table className="subscribers-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Email</th>
+                        <th>Nome</th>
+                        <th>Banido em</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bannedUsers.map((user, index) => (
+                        <tr key={user.id}>
+                          <td className="row-number">{index + 1}</td>
+                          <td className="email-cell">{user.email}</td>
+                          <td className="name-cell">
+                            {user.display_name || <span className="no-name">Sem nome</span>}
+                          </td>
+                          <td className="date-cell">{formatDate(user.banned_at)}</td>
+                          <td className="actions-cell">
+                            <button
+                              className="action-icon-btn unban"
+                              title="Remover ban"
+                              onClick={() => setConfirmModal({ show: true, type: 'unban', userId: user.id, email: user.email, reason: '' })}
+                            >
+                              <i className="fa-solid fa-lock-open"></i>
+                            </button>
+                            <button
+                              className="action-icon-btn delete"
+                              title="Eliminar conta permanentemente"
+                              onClick={() => setConfirmModal({ show: true, type: 'delete', userId: user.id, email: user.email, reason: '' })}
+                            >
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -369,6 +626,185 @@ export default function EmailManagerPage() {
           </div>
         )}
       </div>
+      
+      {/* ═══ ADMIN EMAIL SELECTOR MODAL (Test Mode) ═══ */}
+      {showAdminSelector && (
+        <div className="modal-overlay" onClick={() => setShowAdminSelector(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>
+              <i className="fa-solid fa-flask"></i>
+              Selecionar Destinatários (Teste)
+            </h3>
+            <p className="modal-desc">Escolhe quais administradores receberão o email de teste:</p>
+            
+            <div className="admin-selector-list">
+              <label className="admin-selector-item select-all">
+                <input
+                  type="checkbox"
+                  checked={allAdminsSelected}
+                  onChange={toggleAllAdmins}
+                />
+                <span>Selecionar Todos</span>
+              </label>
+              {adminEmails.map((admin) => (
+                <label key={admin.email} className="admin-selector-item">
+                  <input
+                    type="checkbox"
+                    checked={selectedAdminEmails.has(admin.email)}
+                    onChange={() => toggleAdminEmail(admin.email)}
+                  />
+                  <span>{admin.display_name || admin.email}</span>
+                  <small>{admin.email}</small>
+                </label>
+              ))}
+            </div>
+            
+            <div className="modal-actions">
+              <button className="modal-cancel" onClick={() => setShowAdminSelector(false)}>
+                Cancelar
+              </button>
+              <button
+                className="modal-confirm"
+                disabled={selectedAdminEmails.size === 0 || isSending}
+                onClick={() => {
+                  setShowAdminSelector(false);
+                  doSendEmail(Array.from(selectedAdminEmails));
+                }}
+              >
+                {isSending ? (
+                  <i className="fa-solid fa-spinner fa-spin"></i>
+                ) : (
+                  <i className="fa-solid fa-paper-plane"></i>
+                )}
+                Enviar para {selectedAdminEmails.size} admin{selectedAdminEmails.size !== 1 ? 's' : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* ═══ CONFIRM ACTION MODAL ═══ */}
+      {confirmModal && (
+        <div className="modal-overlay" onClick={() => !actionLoading && setConfirmModal(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>
+              <i className={`fa-solid ${
+                confirmModal.type === 'ban' ? 'fa-ban' :
+                confirmModal.type === 'unban' ? 'fa-lock-open' : 'fa-trash'
+              }`}></i>
+              {confirmModal.type === 'ban' && 'Banir Utilizador'}
+              {confirmModal.type === 'unban' && 'Remover Ban'}
+              {confirmModal.type === 'delete' && 'Eliminar Conta'}
+            </h3>
+            <p className="modal-desc">
+              {confirmModal.type === 'ban' && (
+                <>Tens a certeza que queres banir <strong>{confirmModal.email}</strong>? O utilizador não poderá iniciar sessão.</>
+              )}
+              {confirmModal.type === 'unban' && (
+                <>Queres remover o ban de <strong>{confirmModal.email}</strong>? O utilizador poderá iniciar sessão novamente.</>
+              )}
+              {confirmModal.type === 'delete' && (
+                <>Tens a certeza que queres eliminar permanentemente a conta <strong>{confirmModal.email}</strong>? Esta ação é irreversível.</>
+              )}
+            </p>
+            {confirmModal.type !== 'unban' && (
+              <div className="modal-field">
+                <label className="modal-field-label">Motivo (obrigatorio para notificar por email):</label>
+                <select
+                  className="modal-reason-select"
+                  value={confirmModal.reason}
+                  onChange={(e) => setConfirmModal({ ...confirmModal, reason: e.target.value })}
+                >
+                  <option value="">-- Selecionar motivo --</option>
+                  {(confirmModal.type === 'ban' ? banReasons : deleteReasons).map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="modal-cancel" disabled={actionLoading} onClick={() => setConfirmModal(null)}>
+                Cancelar
+              </button>
+              <button
+                className={`modal-confirm ${confirmModal.type === 'delete' ? 'danger' : ''}`}
+                disabled={actionLoading}
+                onClick={() => {
+                  if (confirmModal.type === 'ban') handleBan(confirmModal.userId);
+                  else if (confirmModal.type === 'unban') handleUnban(confirmModal.userId);
+                  else handleDelete(confirmModal.userId);
+                }}
+              >
+                {actionLoading ? (
+                  <i className="fa-solid fa-spinner fa-spin"></i>
+                ) : (
+                  <i className={`fa-solid ${
+                    confirmModal.type === 'ban' ? 'fa-ban' :
+                    confirmModal.type === 'unban' ? 'fa-lock-open' : 'fa-trash'
+                  }`}></i>
+                )}
+                {confirmModal.type === 'ban' && 'Banir'}
+                {confirmModal.type === 'unban' && 'Desbanir'}
+                {confirmModal.type === 'delete' && 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* ═══ EDIT NAME MODAL ═══ */}
+      {editModal && (
+        <div className="modal-overlay" onClick={() => !actionLoading && setEditModal(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>
+              <i className="fa-solid fa-pen"></i>
+              Editar Nome
+            </h3>
+            <p className="modal-desc">
+              Alterar o nome de <strong>{editModal.email}</strong>:
+            </p>
+            <div className="modal-field">
+              <input
+                type="text"
+                value={editModal.newName}
+                onChange={(e) => setEditModal({ ...editModal, newName: e.target.value })}
+                placeholder="Novo nome"
+                autoFocus
+              />
+            </div>
+            <div className="modal-field">
+              <label className="modal-field-label">Motivo (obrigatorio para notificar por email):</label>
+              <select
+                className="modal-reason-select"
+                value={editModal.reason}
+                onChange={(e) => setEditModal({ ...editModal, reason: e.target.value })}
+              >
+                <option value="">-- Selecionar motivo --</option>
+                {editReasons.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div className="modal-actions">
+              <button className="modal-cancel" disabled={actionLoading} onClick={() => setEditModal(null)}>
+                Cancelar
+              </button>
+              <button
+                className="modal-confirm"
+                disabled={actionLoading || !editModal.newName.trim()}
+                onClick={handleEditName}
+              >
+                {actionLoading ? (
+                  <i className="fa-solid fa-spinner fa-spin"></i>
+                ) : (
+                  <i className="fa-solid fa-check"></i>
+                )}
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

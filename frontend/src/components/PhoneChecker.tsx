@@ -304,7 +304,7 @@ export default function PhoneChecker() {
                 SingleValue: CountrySingleValue,
               }}
               isSearchable={true}
-              placeholder="Selecionar país..."
+              placeholder="País"
               noOptionsMessage={() => "Nenhum país encontrado"}
               hideSelectedOptions={true}
               closeMenuOnSelect={true}

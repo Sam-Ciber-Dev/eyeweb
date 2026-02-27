@@ -10,9 +10,9 @@ import PasswordChecker from '@/components/PasswordChecker';
 import Footer from '@/components/Footer';
 
 const TABS = [
-  { id: 'data', label: 'Dados Pessoais', icon: 'fa-solid fa-user-shield' },
-  { id: 'password', label: 'Força da Password', icon: 'fa-solid fa-key' },
-  { id: 'url', label: 'Verificar URL', icon: 'fa-solid fa-link' },
+  { id: 'data', label: 'Dados Pessoais', icon: '' },
+  { id: 'password', label: 'Força da Password', icon: '' },
+  { id: 'url', label: 'Verificar URL', icon: '' },
 ];
 
 export default function Home() {

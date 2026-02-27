@@ -65,8 +65,8 @@
 .admin-navbar-brand {
   display: flex;
   align-items: center;
-  cursor: default;
-  user-select: none;
+  cursor: pointer;
+  text-decoration: none;
 }
 
 .admin-navbar-brand span {

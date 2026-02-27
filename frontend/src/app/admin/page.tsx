@@ -423,9 +423,9 @@ export default function AdminDashboardPage() {
     <div className="admin-page">
       {/* Navbar */}
       <nav className="admin-navbar">
-        <div className="admin-navbar-brand">
-          <span>Eye Web</span>
-        </div>
+<a href="/" className="admin-navbar-brand">
+            <span>Eye Web</span>
+          </a>
         
         <div className="admin-navbar-user">
           <div 

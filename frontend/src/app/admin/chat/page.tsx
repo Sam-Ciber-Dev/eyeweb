@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminPresence } from '@/contexts/AdminPresenceContext';
 import { supabase } from '@/lib/supabase';
 import JSZip from 'jszip';
 import './chat.css';
@@ -104,14 +105,8 @@ export default function AdminChatPage() {
   // Clear chat confirmation
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   
-  // Online presence
-  const [onlineAdmins, setOnlineAdmins] = useState<Set<string>>(new Set());
-  
-  // Typing indicators: Map<user_id, { name, avatar_url, timeout }>
-  const [typingAdmins, setTypingAdmins] = useState<Map<string, { name: string; avatar_url: string | null }>>(new Map());
-  const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
-  const presenceChannelRef = useRef<any>(null);
-  const lastTypingBroadcast = useRef<number>(0);
+  // Online presence + typing (geridos pelo AdminPresenceContext no layout)
+  const { onlineAdmins, typingAdmins, sendTyping } = useAdminPresence();
   
   // Membros do chat (carregados dinamicamente do Supabase)
   const [chatMembers, setChatMembers] = useState<MentionUser[]>([AI_MEMBER]);
@@ -282,72 +277,8 @@ export default function AdminChatPage() {
     };
   }, [isAuthenticated, isAdmin, scrollToBottom]);
 
-  // ═══ PRESENCE (quem esta online) ═══
-  useEffect(() => {
-    if (!isAuthenticated || !isAdmin || !user || !profile) return;
-
-    const presenceChannel = supabase.channel('admin-chat-presence', {
-      config: { presence: { key: user.id } },
-    });
-
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState();
-        const onlineIds = new Set<string>();
-        Object.values(state).forEach((presences: any) => {
-          presences.forEach((p: any) => {
-            if (p.user_id) onlineIds.add(p.user_id);
-          });
-        });
-        setOnlineAdmins(onlineIds);
-      })
-      .on('broadcast', { event: 'typing' }, ({ payload }: any) => {
-        if (!payload || payload.user_id === user.id) return;
-        
-        const { user_id, name, avatar_url } = payload;
-        
-        // Adicionar ao mapa de typing
-        setTypingAdmins(prev => {
-          const next = new Map(prev);
-          next.set(user_id, { name, avatar_url });
-          return next;
-        });
-        
-        // Limpar timeout anterior se existir
-        const existingTimeout = typingTimeoutsRef.current.get(user_id);
-        if (existingTimeout) clearTimeout(existingTimeout);
-        
-        // Remover apos 3 segundos sem atividade
-        const timeout = setTimeout(() => {
-          setTypingAdmins(prev => {
-            const next = new Map(prev);
-            next.delete(user_id);
-            return next;
-          });
-          typingTimeoutsRef.current.delete(user_id);
-        }, 3000);
-        typingTimeoutsRef.current.set(user_id, timeout);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({
-            name: profile.display_name || user.email?.split('@')[0] || 'Admin',
-            user_id: user.id,
-            online_at: new Date().toISOString(),
-          });
-        }
-      });
-    
-    presenceChannelRef.current = presenceChannel;
-
-    return () => {
-      presenceChannelRef.current = null;
-      // Limpar todos os timeouts
-      typingTimeoutsRef.current.forEach(t => clearTimeout(t));
-      typingTimeoutsRef.current.clear();
-      supabase.removeChannel(presenceChannel);
-    };
-  }, [isAuthenticated, isAdmin, user, profile]);
+  // Presença gerida pelo AdminPresenceContext (admin/layout.tsx)
+  // onlineAdmins + typingAdmins + sendTyping vêm do contexto partilhado
 
   // ═══ FECHAR CONTEXT MENU AO CLICAR FORA ═══
   useEffect(() => {
@@ -589,6 +520,13 @@ export default function AdminChatPage() {
         }
         
         try {
+          // Carregar servicos marcados como propositados pelo admin
+          let intentionalList: string[] | undefined;
+          try {
+            const raw = localStorage.getItem('eyeweb_intentional_services');
+            if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length > 0) intentionalList = arr; }
+          } catch {}
+          
           const aiResponse = await fetch(`${API_URL}/api/admin/chat/ai`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -602,6 +540,7 @@ export default function AdminChatPage() {
               })),
               image_urls: imageUrls.length > 0 ? imageUrls : undefined,
               file_contents: fileContents.length > 0 ? fileContents : undefined,
+              intentional_services: intentionalList,
             }),
           });
 
@@ -846,21 +785,9 @@ export default function AdminChatPage() {
     const value = e.target.value;
     setNewMessage(value);
     
-    // Broadcast typing (throttled a cada 2s)
-    if (value.trim() && presenceChannelRef.current && user && profile) {
-      const now = Date.now();
-      if (now - lastTypingBroadcast.current > 2000) {
-        lastTypingBroadcast.current = now;
-        presenceChannelRef.current.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: {
-            user_id: user.id,
-            name: profile.display_name || user.email?.split('@')[0] || 'Admin',
-            avatar_url: profile.avatar_url || null,
-          },
-        });
-      }
+    // Broadcast typing (throttled pelo contexto)
+    if (value.trim()) {
+      sendTyping();
     }
     
     const cursorPos = e.target.selectionStart || 0;
