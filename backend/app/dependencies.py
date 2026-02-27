@@ -93,7 +93,9 @@ async def verify_admin(request: Request):
             )
 
         # ─── Verificar se é admin ─────────────────────
+        # Método 1: Hash do email no env var (rápido, sem DB)
         email_hash = hashlib.sha256(email.encode()).hexdigest()
+        is_admin = False
 
         admin_hashes: set[str] = set()
         if settings.ADMIN_EMAIL_HASHES:
@@ -103,14 +105,30 @@ async def verify_admin(request: Request):
         if settings.ADMIN_EMAIL_HASH:
             admin_hashes.add(settings.ADMIN_EMAIL_HASH.strip())
 
-        if not admin_hashes:
-            logger.error("🔒 ADMIN_EMAIL_HASH(ES) não configurado — acesso negado por segurança")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Administradores não configurados",
-            )
+        if email_hash in admin_hashes:
+            is_admin = True
 
-        if email_hash not in admin_hashes:
+        # Método 2: Verificar role='admin' na tabela profiles (suporta múltiplos admins)
+        if not is_admin:
+            try:
+                async with httpx.AsyncClient() as db_client:
+                    profile_r = await db_client.get(
+                        f"{supabase_url}/rest/v1/profiles?select=role&email=eq.{email}&role=eq.admin",
+                        headers={
+                            "apikey": supabase_key,
+                            "Authorization": f"Bearer {supabase_key}",
+                        },
+                        timeout=5.0,
+                    )
+                    if profile_r.status_code == 200:
+                        profiles = profile_r.json()
+                        if profiles and len(profiles) > 0:
+                            is_admin = True
+                            logger.info(f"🔓 Admin verificado via DB: {email[:3]}***")
+            except Exception as e:
+                logger.warning(f"⚠️ Falha ao verificar admin na DB: {e}")
+
+        if not is_admin:
             logger.warning(f"🔒 Email não é admin: {email[:3]}***")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
