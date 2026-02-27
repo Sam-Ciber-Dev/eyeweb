@@ -96,30 +96,30 @@ export default function EmailManagerPage() {
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   
-  // ─── Reason Options ───
+  // ─── Reason Options (always in English — sent in user-facing emails) ───
   const banReasons = [
-    'Violacao dos termos de servico',
-    'Comportamento abusivo ou assedio',
-    'Spam ou conteudo indesejado',
-    'Tentativa de acesso nao autorizado',
-    'Atividade suspeita ou fraudulenta',
-    'Uso indevido das ferramentas do site',
-    'Partilha de conteudo malicioso',
+    'Violation of terms of service',
+    'Abusive behavior or harassment',
+    'Spam or unwanted content',
+    'Unauthorized access attempt',
+    'Suspicious or fraudulent activity',
+    'Misuse of site tools',
+    'Sharing malicious content',
   ];
   const deleteReasons = [
-    'Pedido do utilizador',
-    'Conta inativa por periodo prolongado',
-    'Violacao grave dos termos de servico',
-    'Conta duplicada',
-    'Atividade suspeita ou fraudulenta',
-    'Spam ou abuso da plataforma',
+    'User request',
+    'Account inactive for extended period',
+    'Serious violation of terms of service',
+    'Duplicate account',
+    'Suspicious or fraudulent activity',
+    'Spam or platform abuse',
   ];
   const editReasons = [
-    'Nome inapropriado ou ofensivo',
-    'Nome com informacao falsa',
-    'Pedido do utilizador',
-    'Correcao administrativa',
-    'Violacao dos termos de servico',
+    'Inappropriate or offensive name',
+    'Name with false information',
+    'User request',
+    'Administrative correction',
+    'Violation of terms of service',
   ];
   
   // ─── Data Loading ───
@@ -709,13 +709,13 @@ export default function EmailManagerPage() {
             </p>
             {confirmModal.type !== 'unban' && (
               <div className="modal-field">
-                <label className="modal-field-label">Motivo (obrigatorio para notificar por email):</label>
+                <label className="modal-field-label">Reason (required to notify by email):</label>
                 <select
                   className="modal-reason-select"
                   value={confirmModal.reason}
                   onChange={(e) => setConfirmModal({ ...confirmModal, reason: e.target.value })}
                 >
-                  <option value="">-- Selecionar motivo --</option>
+                  <option value="">-- Select reason --</option>
                   {(confirmModal.type === 'ban' ? banReasons : deleteReasons).map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
@@ -773,13 +773,13 @@ export default function EmailManagerPage() {
               />
             </div>
             <div className="modal-field">
-              <label className="modal-field-label">Motivo (obrigatorio para notificar por email):</label>
+              <label className="modal-field-label">Reason (required to notify by email):</label>
               <select
                 className="modal-reason-select"
                 value={editModal.reason}
                 onChange={(e) => setEditModal({ ...editModal, reason: e.target.value })}
               >
-                <option value="">-- Selecionar motivo --</option>
+                <option value="">-- Select reason --</option>
                 {editReasons.map((r) => (
                   <option key={r} value={r}>{r}</option>
                 ))}

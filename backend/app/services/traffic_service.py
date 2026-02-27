@@ -161,8 +161,8 @@ class TrafficService:
         self._req_counts: Dict[str, list] = defaultdict(list)
         self._geo_cache: Dict[str, dict] = {}
         self._heartbeats: Dict[str, float] = {}  # ip → last heartbeat timestamp
-        self._admin_ips: Dict[str, float] = {}    # ip → last admin heartbeat timestamp
-        self._admin_fps: Dict[str, float] = {}    # fingerprint_hash → last admin heartbeat timestamp
+        self._admin_ips: set = set()              # IPs belonging to verified admins (permanent)
+        self._admin_fps: set = set()              # fingerprint hashes belonging to verified admins (permanent)
         self._fp_last_ip: Dict[str, str] = {}        # fingerprint_hash → last known IP (VPN toggle detection)
         self.blocked_devices: set = set()  # fingerprint hashes bloqueados
         self.blocked_hardware_hashes: set = set()  # hardware hashes bloqueados (anti browser-switch)
@@ -278,29 +278,28 @@ class TrafficService:
             self._fp_last_ip = dict(list(self._fp_last_ip.items())[-5000:])
 
     def register_admin_ip(self, ip: str):
-        """Tag an IP as belonging to a verified admin."""
+        """Tag an IP as belonging to a verified admin (permanent for server lifetime)."""
         if ip in self._LOCALHOST:
             return
-        self._admin_ips[ip] = time.time()
+        self._admin_ips.add(ip)
 
     def register_admin_fp(self, fp: str):
-        """Tag a fingerprint as belonging to a verified admin."""
+        """Tag a fingerprint as belonging to a verified admin (permanent for server lifetime)."""
         if not fp:
             return
-        self._admin_fps[fp] = time.time()
-        logger.info(f"\U0001f6e1\ufe0f Admin FP registado: {fp[:12]}...")
+        if fp not in self._admin_fps:
+            logger.info(f"\U0001f6e1\ufe0f Admin FP registado: {fp[:12]}...")
+        self._admin_fps.add(fp)
 
     def is_admin_ip(self, ip: str) -> bool:
-        """Check if IP is a known admin (heartbeat within last 5 minutes)."""
-        last = self._admin_ips.get(ip, 0)
-        return (time.time() - last) < 300  # 5 min window
+        """Check if IP belongs to a verified admin."""
+        return ip in self._admin_ips
 
     def is_admin_fp(self, fp: str) -> bool:
         """Check if fingerprint belongs to a verified admin."""
         if not fp:
             return False
-        last = self._admin_fps.get(fp, 0)
-        return (time.time() - last) < 300  # 5 min window
+        return fp in self._admin_fps
 
     def online_count(self) -> int:
         """Count unique IPs with active heartbeat (online right now)."""
