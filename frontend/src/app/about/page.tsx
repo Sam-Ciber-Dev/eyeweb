@@ -41,7 +41,7 @@ const TEAM: TeamMember[] = [
     role: 'Designer & Developer',
     github: 'Galaxiay11',
     email: '',
-    linkedin: '',
+    linkedin: 'https://www.linkedin.com/in/ana-rita-monteiro-b186a8359',
     website: '',
     contributions: [
       { task: 'Interface', pct: 100 },
@@ -61,7 +61,7 @@ const TEAM: TeamMember[] = [
     role: 'Developer',
     github: 'vankol06',
     email: '',
-    linkedin: '',
+    linkedin: 'https://www.linkedin.com/in/vanina-kollen-337762397',
     website: '',
     contributions: [
       { task: 'Scripts de teste', pct: 40 },
@@ -77,8 +77,8 @@ const TEAM: TeamMember[] = [
     name: 'Tiago Carvalho',
     role: 'Developer',
     github: 'Tiago0612',
-    email: '',
-    linkedin: '',
+    email: 'tiago.fsc.06@gmail.com',
+    linkedin: 'https://www.linkedin.com/in/tiago-carvalho-890938284',
     website: '',
     contributions: [
       { task: 'Scripts de teste', pct: 40 },
@@ -92,8 +92,8 @@ const TEAM: TeamMember[] = [
     name: 'Francisco Ribeiro',
     role: 'Developer',
     github: 'Xico20230',
-    email: '',
-    linkedin: '',
+    email: 'kikorafa01@gmail.com',
+    linkedin: 'https://www.linkedin.com/in/franciscorcribeiro/',
     website: '',
     contributions: [
       { task: 'Diagramas', pct: 70 },

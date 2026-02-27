@@ -483,12 +483,14 @@ def get_account_action_email_template(action_type: str, reason: str, user_name: 
         "edit": "Account Name Changed",
         "ban": "Account Suspended",
         "delete": "Account Deleted",
+        "unban": "Account Reinstated",
     }
     
     action_descriptions = {
         "edit": f"Your Eye Web account name has been changed by an administrator.",
         "ban": f"Your Eye Web account has been permanently suspended by an administrator. You will not be able to sign in.",
         "delete": f"Your Eye Web account and all associated data have been permanently deleted by an administrator.",
+        "unban": f"Great news! Your Eye Web account has been reinstated by an administrator. You can now sign in again.",
     }
     
     title = action_titles.get(action_type, "Account Change")
@@ -956,6 +958,12 @@ async def ban_user(request: UserActionRequest):
 async def unban_user(request: UserActionRequest):
     """Remove o ban de um utilizador via Supabase Auth Admin API."""
     try:
+        supabase = get_supabase()
+        # Obter dados do utilizador para enviar email
+        profile = supabase.table("profiles").select("email,display_name").eq("id", request.user_id).single().execute()
+        user_email = profile.data.get("email", "") if profile.data else ""
+        user_name = profile.data.get("display_name", "") if profile.data else ""
+        
         # Remover ban do Supabase Auth
         async with httpx.AsyncClient() as client:
             resp = await client.put(
@@ -970,6 +978,11 @@ async def unban_user(request: UserActionRequest):
             )
             if resp.status_code not in (200, 201):
                 raise HTTPException(status_code=500, detail="Erro ao desbanir no Auth.")
+        
+        # Enviar email de notificacao de unban
+        if user_email:
+            html = get_account_action_email_template("unban", "Your account suspension has been reviewed and lifted.", user_name)
+            await send_email_via_brevo(user_email, "Account Reinstated - Eye Web", html)
         
         return {"success": True, "message": "Ban removido com sucesso."}
     except HTTPException:

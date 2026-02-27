@@ -111,9 +111,11 @@ async def verify_admin(request: Request):
         # Método 2: Verificar role='admin' na tabela profiles (suporta múltiplos admins)
         if not is_admin:
             try:
+                from urllib.parse import quote
+                encoded_email = quote(email, safe='')
                 async with httpx.AsyncClient() as db_client:
                     profile_r = await db_client.get(
-                        f"{supabase_url}/rest/v1/profiles?select=role&email=eq.{email}&role=eq.admin",
+                        f"{supabase_url}/rest/v1/profiles?select=role&email=eq.{encoded_email}&role=eq.admin",
                         headers={
                             "apikey": supabase_key,
                             "Authorization": f"Bearer {supabase_key}",
@@ -125,6 +127,8 @@ async def verify_admin(request: Request):
                         if profiles and len(profiles) > 0:
                             is_admin = True
                             logger.info(f"🔓 Admin verificado via DB: {email[:3]}***")
+                    else:
+                        logger.warning(f"⚠️ DB admin check returned {profile_r.status_code}: {profile_r.text[:200]}")
             except Exception as e:
                 logger.warning(f"⚠️ Falha ao verificar admin na DB: {e}")
 
