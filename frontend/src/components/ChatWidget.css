@@ -312,36 +312,21 @@
   }
 
   .ew-box {
-    position: fixed;
-    left: 5px;
-    right: 5px;
-    bottom: 5px;
-    top: auto;
-    width: auto;
-    max-height: 85vh;
-    height: 60vh;
+    position: fixed !important;
+    left: 5px !important;
+    right: 5px !important;
+    bottom: 5px !important;
+    top: auto !important;
+    width: calc(100vw - 10px) !important;
+    max-height: 70vh;
+    height: 55vh;
     border-radius: 12px;
     z-index: 1000000;
   }
 
-  /* When the virtual keyboard is open, shrink the chat */
-  @supports (height: 1dvh) {
-    .ew-box {
-      max-height: 85dvh;
-      height: 60dvh;
-    }
-  }
-
   .ew-box.expanded {
-    height: 80vh;
-    max-height: 90vh;
-  }
-
-  @supports (height: 1dvh) {
-    .ew-box.expanded {
-      height: 80dvh;
-      max-height: 90dvh;
-    }
+    height: 75vh;
+    max-height: 85vh;
   }
 
   .ew-header {
@@ -398,8 +383,9 @@
 
 @media (max-width: 360px) {
   .ew-box {
-    left: 2px;
-    right: 2px;
+    left: 2px !important;
+    right: 2px !important;
+    width: calc(100vw - 4px) !important;
   }
 
   .ew-msg {
