@@ -420,3 +420,42 @@ def get_welcome_email_template(display_name: str) -> str:
     </body>
     </html>
     """
+
+
+async def send_welcome_email(email: str, display_name: str) -> bool:
+    """
+    Envia email de boas-vindas após registo bem-sucedido usando Resend.
+    """
+    if not settings.RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY não configurada — welcome email não enviado")
+        return False
+    
+    name = display_name or "User"
+    html_content = get_welcome_email_template(name)
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "from": "Eye Web <onboarding@resend.dev>",
+                    "to": [email],
+                    "subject": "🎉 Welcome to Eye Web!",
+                    "html": html_content
+                }
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"✅ Welcome email enviado para {email[:3]}***")
+                return True
+            else:
+                logger.error(f"❌ Erro welcome email: {response.status_code} - {response.text}")
+                return False
+                
+    except Exception as e:
+        logger.error(f"❌ Erro ao enviar welcome email: {e}")
+        return False
