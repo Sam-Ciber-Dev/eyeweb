@@ -8,27 +8,24 @@ import ChatWidget from '@/components/ChatWidget'
 import PageTracker from '@/components/PageTracker'
 
 export const metadata: Metadata = {
-  title: {
-    default: 'Eye Web — Data Breach & Cybersecurity Checker',
-    template: '%s | Eye Web',
-  },
-  description: 'Check if your personal data has been exposed in data breaches. Free cybersecurity tool with full privacy using K-Anonymity. Verify emails, passwords, URLs and phone numbers.',
+  title: 'Eye Web',
+  description: 'Check if your personal data has been exposed in data breaches. Free cybersecurity tool with full privacy using K-Anonymity.',
   keywords: ['breach checker', 'data breach', 'cybersecurity', 'k-anonymity', 'email leak', 'password checker', 'url scanner', 'phone breach', 'data exposure', 'eye web'],
   authors: [{ name: 'Eye Web Team' }],
   creator: 'Eye Web',
   metadataBase: new URL('https://eyeweb.vercel.app'),
   openGraph: {
     type: 'website',
-    locale: 'pt_PT',
-    alternateLocale: 'en_US',
+    locale: 'en_US',
+    alternateLocale: 'pt_PT',
     url: 'https://eyeweb.vercel.app',
     siteName: 'Eye Web',
-    title: 'Eye Web — Data Breach & Cybersecurity Checker',
+    title: 'Eye Web',
     description: 'Check if your personal data has been exposed in data breaches. Free cybersecurity tool with full privacy using K-Anonymity.',
   },
   twitter: {
     card: 'summary',
-    title: 'Eye Web — Data Breach & Cybersecurity Checker',
+    title: 'Eye Web',
     description: 'Check if your personal data has been exposed in data breaches.',
   },
   robots: {
@@ -43,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="pt">
+    <html lang="en">
       <head>
         <link 
           rel="stylesheet" 

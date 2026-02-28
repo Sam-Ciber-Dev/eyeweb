@@ -312,16 +312,36 @@
   }
 
   .ew-box {
-    width: calc(100vw - 20px);
-    height: 55vh;
-    bottom: 70px;
-    right: -5px;
+    position: fixed;
+    left: 5px;
+    right: 5px;
+    bottom: 5px;
+    top: auto;
+    width: auto;
+    max-height: 85vh;
+    height: 60vh;
     border-radius: 12px;
+    z-index: 1000000;
+  }
+
+  /* When the virtual keyboard is open, shrink the chat */
+  @supports (height: 1dvh) {
+    .ew-box {
+      max-height: 85dvh;
+      height: 60dvh;
+    }
   }
 
   .ew-box.expanded {
-    width: calc(100vw - 20px);
-    height: 70vh;
+    height: 80vh;
+    max-height: 90vh;
+  }
+
+  @supports (height: 1dvh) {
+    .ew-box.expanded {
+      height: 80dvh;
+      max-height: 90dvh;
+    }
   }
 
   .ew-header {
@@ -350,13 +370,14 @@
 
   .ew-input-area input {
     height: 36px;
-    font-size: 13px;
+    font-size: 16px;
     padding: 0 8px;
   }
 
   .ew-send-btn {
     width: 36px;
     height: 36px;
+    flex-shrink: 0;
   }
 
   .ew-send-btn svg {
@@ -377,9 +398,8 @@
 
 @media (max-width: 360px) {
   .ew-box {
-    width: calc(100vw - 10px);
-    height: 50vh;
-    right: -8px;
+    left: 2px;
+    right: 2px;
   }
 
   .ew-msg {

@@ -14,7 +14,7 @@ interface LanguageContextType {
 }
 
 const LanguageContext = createContext<LanguageContextType>({
-  lang: 'pt',
+  lang: 'en',
   setLang: () => {},
   t: (key: string) => key,
   langLocked: false,
@@ -24,7 +24,7 @@ const LanguageContext = createContext<LanguageContextType>({
 const STORAGE_KEY = 'eyeweb_lang';
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('pt');
+  const [lang, setLangState] = useState<Lang>('en');
   const [langLocked, setLangLockedState] = useState(false);
   const langLockedRef = useRef(false);
 
@@ -33,12 +33,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLangLockedState(locked);
   }, []);
 
-  // Load persisted language on mount
+  // Load persisted language on mount (default: en)
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY) as Lang | null;
     if (saved === 'en' || saved === 'pt') {
       setLangState(saved);
       document.documentElement.lang = saved;
+    } else {
+      // First visit — default to English
+      document.documentElement.lang = 'en';
     }
   }, []);
 

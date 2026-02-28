@@ -71,6 +71,36 @@ function ChatWidgetInner() {
     return () => clearInterval(interval);
   }, []);
 
+  // ═══ MOBILE KEYBOARD — adjust chat box when virtual keyboard opens ═══
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    
+    const vv = window.visualViewport;
+    const handleResize = () => {
+      const box = document.querySelector('.ew-box') as HTMLElement | null;
+      if (!box || window.innerWidth > 480) return;
+      
+      // When keyboard opens, visualViewport.height shrinks
+      const keyboardHeight = window.innerHeight - vv.height;
+      if (keyboardHeight > 100) {
+        // Keyboard is open
+        box.style.bottom = '5px';
+        box.style.maxHeight = `${vv.height - 10}px`;
+      } else {
+        // Keyboard is closed
+        box.style.bottom = '';
+        box.style.maxHeight = '';
+      }
+      // Scroll to bottom after resize
+      if (historyRef.current) {
+        historyRef.current.scrollTop = historyRef.current.scrollHeight;
+      }
+    };
+
+    vv.addEventListener('resize', handleResize);
+    return () => vv.removeEventListener('resize', handleResize);
+  }, [isOpen]);
+
   // ═══ PERSISTENCIA — carregar do sessionStorage no mount ═══
   useEffect(() => {
     const saved = sessionStorage.getItem('ewChatHistory');
@@ -252,7 +282,9 @@ function ChatWidgetInner() {
     setIsOpen(true);
     setTimeout(() => {
       scrollToBottom();
-      if (!isTyping && !cooldown) inputRef.current?.focus();
+      // On mobile, don't auto-focus input to prevent keyboard from pushing chat up
+      const isMobile = window.innerWidth <= 480;
+      if (!isMobile && !isTyping && !cooldown) inputRef.current?.focus();
     }, 100);
   };
 
