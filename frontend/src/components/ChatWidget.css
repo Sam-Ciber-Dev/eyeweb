@@ -306,25 +306,84 @@
 
 /* ═══ RESPONSIVE ═══ */
 @media (max-width: 480px) {
+  .ew-widget {
+    bottom: 65px;
+    right: 10px;
+  }
+
   .ew-box {
-    width: calc(100vw - 40px);
-    height: 60vh;
-    bottom: 80px;
-    right: 0;
+    width: calc(100vw - 20px);
+    height: 55vh;
+    bottom: 70px;
+    right: -5px;
+    border-radius: 12px;
   }
 
   .ew-box.expanded {
-    width: calc(100vw - 40px);
-    height: 75vh;
+    width: calc(100vw - 20px);
+    height: 70vh;
+  }
+
+  .ew-header {
+    padding: 10px 12px;
+  }
+
+  .ew-header strong {
+    font-size: 0.85rem;
+  }
+
+  .ew-history {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .ew-msg {
+    padding: 8px 10px;
+    font-size: 13px;
+    max-width: 90%;
+  }
+
+  .ew-input-area {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .ew-input-area input {
+    height: 36px;
+    font-size: 13px;
+    padding: 0 8px;
+  }
+
+  .ew-send-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .ew-send-btn svg {
+    width: 16px;
+    height: 16px;
   }
 
   .ew-launcher {
-    width: 52px;
-    height: 52px;
+    width: 48px;
+    height: 48px;
   }
 
   .ew-launcher svg {
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 360px) {
+  .ew-box {
+    width: calc(100vw - 10px);
+    height: 50vh;
+    right: -8px;
+  }
+
+  .ew-msg {
+    font-size: 12px;
+    padding: 6px 8px;
   }
 }

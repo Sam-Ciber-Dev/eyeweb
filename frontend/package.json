@@ -35,6 +35,7 @@
     "typescript": "^5.3.3"
   },
   "overrides": {
-    "glob": ">=10.5.0"
+    "glob": ">=10.5.0",
+    "minimatch": ">=9.0.7"
   }
 }

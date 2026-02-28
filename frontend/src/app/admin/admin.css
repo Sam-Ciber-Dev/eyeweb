@@ -606,7 +606,7 @@
   white-space: nowrap;
   margin: 0.75rem auto 0;
   animation: 
-    typing-loop 8s steps(35, end) infinite,
+    typing-loop 24s steps(40, end) infinite,
     blink-caret 0.75s step-end infinite;
   width: 0;
   max-width: fit-content;
@@ -614,10 +614,10 @@
 
 @keyframes typing-loop {
   0% { width: 0; }
-  30% { width: 100%; }  /* Escreve em 2.4s */
-  70% { width: 100%; }  /* Fica visível 3.2s */
-  85% { width: 0; }     /* Apaga em 1.2s */
-  100% { width: 0; }    /* Pausa antes de reiniciar */
+  8% { width: 100%; }    /* Escreve em ~2s */
+  71% { width: 100%; }   /* Fica visível ~15s */
+  79% { width: 0; }      /* Apaga em ~2s */
+  100% { width: 0; }     /* Pausa ~5s antes de reiniciar */
 }
 
 @keyframes blink-caret {

@@ -26,6 +26,9 @@ export const translations: Record<string, TranslationDict> = {
     'footer.terms': 'Termos de Serviço',
     'footer.privacyGuarantee': 'Privacidade garantida com',
 
+    // ── Home page ──
+    'home.tagline': 'Vamos ficar de olho uns nos outros.',
+
     // ── Home page tabs ──
     'tab.data': 'Dados Pessoais',
     'tab.password': 'Força da Password',
@@ -366,6 +369,9 @@ export const translations: Record<string, TranslationDict> = {
     'footer.privacyGuarantee': 'Privacy guaranteed with',
 
     // ── Home page tabs ──
+    // ── Home page ──
+    'home.tagline': "Let's keep an eye on each other.",
+
     'tab.data': 'Personal Data',
     'tab.password': 'Password Strength',
     'tab.url': 'Check URL',

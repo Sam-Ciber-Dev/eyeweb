@@ -11,90 +11,103 @@ interface CountryOption {
   value: string;
   label: string;
   country: CountryCode;
+  localizedName: string;
+}
+
+// Mapear código de telefone para código ISO do país
+const phoneToISO: Record<string, string> = {
+  // A
+  '+93': 'AF', '+27': 'ZA', '+355': 'AL', '+49': 'DE', '+376': 'AD',
+  '+244': 'AO', '+1264': 'AI', '+1268': 'AG', '+966': 'SA', '+213': 'DZ',
+  '+54': 'AR', '+374': 'AM', '+297': 'AW', '+61': 'AU', '+43': 'AT',
+  '+994': 'AZ',
+  // B
+  '+1242': 'BS', '+880': 'BD', '+1246': 'BB', '+973': 'BH', '+32': 'BE',
+  '+501': 'BZ', '+229': 'BJ', '+1441': 'BM', '+375': 'BY', '+591': 'BO',
+  '+387': 'BA', '+267': 'BW', '+55': 'BR', '+673': 'BN', '+359': 'BG',
+  '+226': 'BF', '+257': 'BI',
+  // C
+  '+238': 'CV', '+237': 'CM', '+855': 'KH', '+1': 'US', '+974': 'QA',
+  '+7': 'RU', '+235': 'TD', '+56': 'CL', '+86': 'CN', '+357': 'CY',
+  '+57': 'CO', '+269': 'KM', '+242': 'CG', '+850': 'KP', '+82': 'KR',
+  '+225': 'CI', '+506': 'CR', '+385': 'HR', '+53': 'CU', '+599': 'CW',
+  // D
+  '+45': 'DK', '+253': 'DJ', '+1767': 'DM',
+  // E
+  '+20': 'EG', '+503': 'SV', '+971': 'AE', '+593': 'EC', '+291': 'ER',
+  '+421': 'SK', '+386': 'SI', '+34': 'ES', '+372': 'EE', '+251': 'ET',
+  // F
+  '+679': 'FJ', '+63': 'PH', '+358': 'FI', '+33': 'FR',
+  // G
+  '+241': 'GA', '+220': 'GM', '+233': 'GH', '+995': 'GE', '+350': 'GI',
+  '+1473': 'GD', '+30': 'GR', '+299': 'GL', '+590': 'GP', '+1671': 'GU',
+  '+502': 'GT', '+592': 'GY', '+594': 'GF', '+224': 'GN', '+240': 'GQ',
+  '+245': 'GW',
+  // H
+  '+509': 'HT', '+504': 'HN', '+852': 'HK', '+36': 'HU',
+  // I
+  '+967': 'YE', '+1345': 'KY', '+682': 'CK', '+298': 'FO', '+500': 'FK',
+  '+692': 'MH', '+677': 'SB', '+1284': 'VG', '+1340': 'VI', '+91': 'IN',
+  '+62': 'ID', '+98': 'IR', '+964': 'IQ', '+353': 'IE', '+354': 'IS',
+  '+972': 'IL', '+39': 'IT',
+  // J
+  '+1876': 'JM', '+81': 'JP', '+962': 'JO',
+  // K
+  '+254': 'KE', '+996': 'KG', '+686': 'KI',
+  // L
+  '+856': 'LA', '+266': 'LS', '+371': 'LV', '+961': 'LB', '+231': 'LR',
+  '+218': 'LY', '+423': 'LI', '+370': 'LT', '+352': 'LU',
+  // M
+  '+853': 'MO', '+389': 'MK', '+261': 'MG', '+60': 'MY', '+265': 'MW',
+  '+960': 'MV', '+223': 'ML', '+356': 'MT', '+212': 'MA', '+596': 'MQ',
+  '+230': 'MU', '+222': 'MR', '+52': 'MX', '+95': 'MM', '+691': 'FM',
+  '+258': 'MZ', '+373': 'MD', '+377': 'MC', '+976': 'MN', '+382': 'ME',
+  '+1664': 'MS',
+  // N
+  '+264': 'NA', '+674': 'NR', '+977': 'NP', '+505': 'NI', '+227': 'NE',
+  '+234': 'NG', '+683': 'NU', '+47': 'NO', '+687': 'NC', '+64': 'NZ',
+  // O
+  '+968': 'OM',
+  // P
+  '+31': 'NL', '+680': 'PW', '+970': 'PS', '+507': 'PA', '+675': 'PG',
+  '+92': 'PK', '+595': 'PY', '+51': 'PE', '+689': 'PF', '+48': 'PL',
+  '+1787': 'PR', '+351': 'PT',
+  // R
+  '+44': 'GB', '+236': 'CF', '+420': 'CZ', '+243': 'CD', '+1809': 'DO',
+  '+262': 'RE', '+40': 'RO', '+250': 'RW',
+  // S
+  '+685': 'WS', '+1684': 'AS', '+290': 'SH', '+1758': 'LC', '+1869': 'KN',
+  '+378': 'SM', '+508': 'PM', '+239': 'ST', '+1784': 'VC', '+221': 'SN',
+  '+232': 'SL', '+381': 'RS', '+248': 'SC', '+65': 'SG', '+1721': 'SX',
+  '+963': 'SY', '+252': 'SO', '+94': 'LK', '+268': 'SZ', '+249': 'SD',
+  '+211': 'SS', '+46': 'SE', '+41': 'CH', '+597': 'SR',
+  // T
+  '+66': 'TH', '+886': 'TW', '+992': 'TJ', '+255': 'TZ', '+670': 'TL',
+  '+228': 'TG', '+676': 'TO', '+1868': 'TT', '+216': 'TN', '+993': 'TM',
+  '+90': 'TR', '+688': 'TV',
+  // U
+  '+380': 'UA', '+256': 'UG', '+598': 'UY', '+998': 'UZ',
+  // V
+  '+678': 'VU', '+379': 'VA', '+58': 'VE', '+84': 'VN',
+  // Z
+  '+260': 'ZM', '+263': 'ZW',
+};
+
+// Obter nome do país localizado com Intl.DisplayNames
+function getLocalizedCountryName(phoneCode: string, fallbackName: string, locale: string): string {
+  const iso = phoneToISO[phoneCode];
+  if (!iso) return fallbackName;
+  try {
+    const displayNames = new Intl.DisplayNames([locale], { type: 'region' });
+    return displayNames.of(iso) || fallbackName;
+  } catch {
+    return fallbackName;
+  }
 }
 
 // Função para obter URL da bandeira via flagcdn.com
 const getFlagUrl = (countryCode: string): string => {
-  // Mapear código de telefone para código ISO do país
-  const codeToISO: Record<string, string> = {
-    // A
-    '+93': 'af', '+27': 'za', '+355': 'al', '+49': 'de', '+376': 'ad',
-    '+244': 'ao', '+1264': 'ai', '+1268': 'ag', '+966': 'sa', '+213': 'dz',
-    '+54': 'ar', '+374': 'am', '+297': 'aw', '+61': 'au', '+43': 'at',
-    '+994': 'az',
-    // B
-    '+1242': 'bs', '+880': 'bd', '+1246': 'bb', '+973': 'bh', '+32': 'be',
-    '+501': 'bz', '+229': 'bj', '+1441': 'bm', '+375': 'by', '+591': 'bo',
-    '+387': 'ba', '+267': 'bw', '+55': 'br', '+673': 'bn', '+359': 'bg',
-    '+226': 'bf', '+257': 'bi',
-    // C
-    '+238': 'cv', '+237': 'cm', '+855': 'kh', '+1': 'us', '+974': 'qa',
-    '+7': 'ru', '+235': 'td', '+56': 'cl', '+86': 'cn', '+357': 'cy',
-    '+57': 'co', '+269': 'km', '+242': 'cg', '+850': 'kp', '+82': 'kr',
-    '+225': 'ci', '+506': 'cr', '+385': 'hr', '+53': 'cu', '+599': 'cw',
-    // D
-    '+45': 'dk', '+253': 'dj', '+1767': 'dm',
-    // E
-    '+20': 'eg', '+503': 'sv', '+971': 'ae', '+593': 'ec', '+291': 'er',
-    '+421': 'sk', '+386': 'si', '+34': 'es', '+372': 'ee', '+251': 'et',
-    // F
-    '+679': 'fj', '+63': 'ph', '+358': 'fi', '+33': 'fr',
-    // G
-    '+241': 'ga', '+220': 'gm', '+233': 'gh', '+995': 'ge', '+350': 'gi',
-    '+1473': 'gd', '+30': 'gr', '+299': 'gl', '+590': 'gp', '+1671': 'gu',
-    '+502': 'gt', '+592': 'gy', '+594': 'gf', '+224': 'gn', '+240': 'gq',
-    '+245': 'gw',
-    // H
-    '+509': 'ht', '+504': 'hn', '+852': 'hk', '+36': 'hu',
-    // I
-    '+967': 'ye', '+1345': 'ky', '+682': 'ck', '+298': 'fo', '+500': 'fk',
-    '+692': 'mh', '+677': 'sb', '+1284': 'vg', '+1340': 'vi', '+91': 'in',
-    '+62': 'id', '+98': 'ir', '+964': 'iq', '+353': 'ie', '+354': 'is',
-    '+972': 'il', '+39': 'it',
-    // J
-    '+1876': 'jm', '+81': 'jp', '+962': 'jo',
-    // L
-    '+856': 'la', '+266': 'ls', '+371': 'lv', '+961': 'lb', '+231': 'lr',
-    '+218': 'ly', '+423': 'li', '+370': 'lt', '+352': 'lu',
-    // M
-    '+853': 'mo', '+389': 'mk', '+261': 'mg', '+60': 'my', '+265': 'mw',
-    '+960': 'mv', '+223': 'ml', '+356': 'mt', '+212': 'ma', '+596': 'mq',
-    '+230': 'mu', '+222': 'mr', '+52': 'mx', '+95': 'mm', '+691': 'fm',
-    '+258': 'mz', '+373': 'md', '+377': 'mc', '+976': 'mn', '+382': 'me',
-    '+1664': 'ms',
-    // N
-    '+264': 'na', '+674': 'nr', '+977': 'np', '+505': 'ni', '+227': 'ne',
-    '+234': 'ng', '+683': 'nu', '+47': 'no', '+687': 'nc', '+64': 'nz',
-    // O
-    '+968': 'om',
-    // P
-    '+31': 'nl', '+680': 'pw', '+970': 'ps', '+507': 'pa', '+675': 'pg',
-    '+92': 'pk', '+595': 'py', '+51': 'pe', '+689': 'pf', '+48': 'pl',
-    '+1787': 'pr', '+351': 'pt',
-    // Q
-    '+254': 'ke', '+996': 'kg', '+686': 'ki',
-    // R
-    '+44': 'gb', '+236': 'cf', '+420': 'cz', '+243': 'cd', '+1809': 'do',
-    '+262': 're', '+40': 'ro', '+250': 'rw',
-    // S
-    '+685': 'ws', '+1684': 'as', '+290': 'sh', '+1758': 'lc', '+1869': 'kn',
-    '+378': 'sm', '+508': 'pm', '+239': 'st', '+1784': 'vc', '+221': 'sn',
-    '+232': 'sl', '+381': 'rs', '+248': 'sc', '+65': 'sg', '+1721': 'sx',
-    '+963': 'sy', '+252': 'so', '+94': 'lk', '+268': 'sz', '+249': 'sd',
-    '+211': 'ss', '+46': 'se', '+41': 'ch', '+597': 'sr',
-    // T
-    '+66': 'th', '+886': 'tw', '+992': 'tj', '+255': 'tz', '+670': 'tl',
-    '+228': 'tg', '+676': 'to', '+1868': 'tt', '+216': 'tn', '+993': 'tm',
-    '+90': 'tr', '+688': 'tv',
-    // U
-    '+380': 'ua', '+256': 'ug', '+598': 'uy', '+998': 'uz',
-    // V
-    '+678': 'vu', '+379': 'va', '+58': 've', '+84': 'vn',
-    // Z
-    '+260': 'zm', '+263': 'zw',
-  };
-  
-  const iso = codeToISO[countryCode] || 'un';
+  const iso = phoneToISO[countryCode]?.toLowerCase() || 'un';
   return `https://flagcdn.com/24x18/${iso}.png`;
 };
 
@@ -107,10 +120,10 @@ const CountryOptionComponent = (props: OptionProps<CountryOption>) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <img 
           src={getFlagUrl(data.country.code)} 
-          alt={data.country.name}
+          alt={data.localizedName}
           style={{ width: '24px', height: '18px', objectFit: 'cover', borderRadius: '2px' }}
         />
-        <span style={{ flex: 1 }}>{data.country.name}</span>
+        <span style={{ flex: 1 }}>{data.localizedName}</span>
         <span style={{ color: '#888' }}>{data.country.code}</span>
       </div>
     </components.Option>
@@ -216,7 +229,7 @@ const customStyles: StylesConfig<CountryOption, false> = {
 
 export default function PhoneChecker() {
   const [phone, setPhone] = useState('');
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   
   // Nenhum país selecionado por defeito
   const [selectedCountry, setSelectedCountry] = useState<CountryCode | null>(null);
@@ -230,16 +243,21 @@ export default function PhoneChecker() {
   const [error, setError] = useState<string | null>(null);
 
   // Converter COUNTRY_CODES para formato do react-select
-  // Ordenar por nome do país (alfabeticamente)
-  const countryOptions: CountryOption[] = useMemo(() => 
-    [...COUNTRY_CODES]
-      .sort((a, b) => a.name.localeCompare(b.name, 'pt'))
-      .map(country => ({
-        value: country.code,
-        label: `${country.name} ${country.code}`,
-        country: country,
-      })), []
-  );
+  // Nomes traduzidos automaticamente com Intl.DisplayNames
+  const countryOptions: CountryOption[] = useMemo(() => {
+    const locale = lang === 'pt' ? 'pt' : 'en';
+    return [...COUNTRY_CODES]
+      .map(country => {
+        const localizedName = getLocalizedCountryName(country.code, country.name, locale);
+        return {
+          value: country.code,
+          label: `${localizedName} ${country.code}`,
+          country: country,
+          localizedName,
+        };
+      })
+      .sort((a, b) => a.localizedName.localeCompare(b.localizedName, locale));
+  }, [lang]);
 
   // Encontrar a opção selecionada (pode ser null)
   const selectedOption = useMemo(() => {

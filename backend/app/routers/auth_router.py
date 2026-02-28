@@ -16,7 +16,8 @@ from ..services.auth_service import (
     generate_session_id,
     store_verification_code,
     verify_code,
-    send_verification_email
+    send_verification_email,
+    send_welcome_email,
 )
 from ..config import get_settings
 
@@ -246,6 +247,12 @@ async def register_google_user(request: RegisterGoogleUserRequest):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Erro ao criar perfil: {profile_resp.status_code} - {error_text}"
             )
+        
+        # Enviar email de boas-vindas (não crítico)
+        try:
+            await send_welcome_email(request.email, request.display_name.strip())
+        except Exception as e:
+            logger.warning(f"Welcome email falhou (não crítico): {e}")
         
         return RegisterGoogleUserResponse(
             success=True,

@@ -1,5 +1,5 @@
 "use client";
-import React from 'react';
+import React, { useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -296,6 +296,11 @@ const SECTIONS_EN = [
 
 export default function TermosServicoPage() {
   const { lang } = useLanguage();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const SECTIONS = lang === 'en' ? SECTIONS_EN : SECTIONS_PT;
   const pageTitle = lang === 'en' ? 'Terms of Service' : 'Termos de Serviço';
   const tocTitle = lang === 'en' ? 'Table of Contents' : 'Índice';
@@ -305,9 +310,6 @@ export default function TermosServicoPage() {
       <div className="legal-page">
         {/* Hero */}
         <div className="legal-hero">
-          <div className="legal-hero-icon">
-            <i className="fa-solid fa-file-contract"></i>
-          </div>
           <h1>{pageTitle}</h1>
         </div>
 

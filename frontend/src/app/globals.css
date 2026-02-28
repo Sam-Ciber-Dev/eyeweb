@@ -403,9 +403,13 @@ body {
   padding: 2rem 0;
 }
 
+.header {
+  text-align: center;
+}
+
 .header h1 {
   font-size: 2.5rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0;
 }
 
 .tagline {
@@ -660,6 +664,10 @@ body {
   
   .header h1 {
     font-size: 2rem;
+  }
+
+  .home-typing-text {
+    font-size: 0.8rem;
   }
   
   .data-tabs {
@@ -1013,14 +1021,58 @@ body {
   text-decoration: underline;
 }
 
+/* ═══ Typing text — home page ═══ */
+.home-typing-text {
+  overflow: hidden;
+  border-right: 2px solid rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  margin: 0.5rem auto 0;
+  color: var(--gray);
+  font-size: 1rem;
+  animation:
+    home-typing 24s steps(40, end) infinite,
+    home-blink 0.75s step-end infinite;
+  width: 0;
+  max-width: fit-content;
+}
+
+@keyframes home-typing {
+  0% { width: 0; }
+  8% { width: 100%; }
+  71% { width: 100%; }
+  79% { width: 0; }
+  100% { width: 0; }
+}
+
+@keyframes home-blink {
+  from, to { border-color: transparent; }
+  50% { border-color: rgba(255, 255, 255, 0.5); }
+}
+
 /* Responsive Footer Minimal */
 @media (max-width: 480px) {
   .site-footer-minimal {
-    padding: 0.6rem 0.75rem;
+    padding: 0.4rem 0.5rem !important;
   }
-  
-  .footer-minimal-links,
-  .footer-minimal-info {
+
+  .footer-minimal-content {
+    gap: 0.15rem;
+  }
+
+  .footer-minimal-links {
+    gap: 0.35rem;
+  }
+
+  .footer-minimal-links a {
     font-size: 0.6rem;
+  }
+
+  .footer-minimal-info {
+    font-size: 0.55rem;
+    gap: 0.3rem;
+  }
+
+  .footer-divider {
+    font-size: 0.5rem;
   }
 }

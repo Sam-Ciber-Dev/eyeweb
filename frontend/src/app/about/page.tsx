@@ -67,7 +67,7 @@ const TEAM: TeamMember[] = [
       { task: 'Scripts de teste', pct: 40 },
       { task: "API's", pct: 10 },
       { task: 'SEO', pct: 20 },
-      { task: 'ChatBot Users', pct: 20 },
+      { task: 'ChatBot Users', pct: 60 },
       { task: 'Termos de Serviço', pct: 100 },
       { task: 'Relatório', pct: 35 },
       { task: 'PowerPoint', pct: 50 },

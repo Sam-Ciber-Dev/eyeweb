@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/lib/supabase';
 import './admin.css';
 
@@ -595,12 +596,13 @@ interface MainMenuProps {
 }
 
 function MainMenu({ onNavigate, onRouteNavigate }: MainMenuProps) {
+  const { t } = useLanguage();
   return (
     <>
       {/* Título */}
       <div className="admin-title">
         <h1>Eye Web</h1>
-        <p className="typing-text">Let's keep an eye on each other</p>
+        <p className="typing-text">{t('home.tagline')}</p>
       </div>
 
       {/* Cards */}

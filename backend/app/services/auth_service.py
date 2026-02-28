@@ -339,3 +339,84 @@ def get_email_template(code: str) -> str:
     </body>
     </html>
     """
+
+
+def get_welcome_email_template(display_name: str) -> str:
+    """
+    Template HTML para email de boas-vindas.
+    """
+    name = display_name or "User"
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Welcome to Eye Web!</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0a0a0a; padding: 40px 20px;">
+            <tr>
+                <td align="center">
+                    <table width="100%" max-width="600" cellpadding="0" cellspacing="0" style="background-color: #111111; border-radius: 16px; border: 1px solid #222222; overflow: hidden;">
+                        <!-- Header -->
+                        <tr>
+                            <td style="padding: 32px 32px 24px; text-align: center; border-bottom: 1px solid #222222;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
+                                <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #3b82f6;">Welcome to Eye Web!</h1>
+                            </td>
+                        </tr>
+                        
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding: 32px;">
+                                <p style="margin: 0 0 20px; font-size: 18px; color: #ffffff;">
+                                    Hello <strong>{name}</strong>! 👋
+                                </p>
+                                
+                                <p style="margin: 0 0 20px; font-size: 15px; color: #cccccc; line-height: 1.7;">
+                                    Thank you for registering on <strong style="color: #3b82f6;">Eye Web</strong>! 
+                                    Your online security is our priority.
+                                </p>
+                                
+                                <div style="background-color: #1a1a2e; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                                    <h3 style="margin: 0 0 12px; font-size: 16px; color: #3b82f6;">What you can do:</h3>
+                                    <ul style="margin: 0; padding: 0 0 0 20px; color: #cccccc; line-height: 1.8;">
+                                        <li>🔍 <strong>Check emails</strong> — Find out if your data has been exposed</li>
+                                        <li>🔐 <strong>Test passwords</strong> — Check if they are secure</li>
+                                        <li>🌐 <strong>Analyze URLs</strong> — Detect malicious websites</li>
+                                        <li>📱 <strong>Check phones</strong> — Confirm your number's security</li>
+                                    </ul>
+                                </div>
+                                
+                                <p style="margin: 0 0 20px; font-size: 15px; color: #888888; line-height: 1.7;">
+                                    All data is verified using <strong style="color: #22c55e;">K-Anonymity</strong> — 
+                                    we never send your complete information, only hash prefixes.
+                                </p>
+                                
+                                <div style="text-align: center; margin-top: 24px;">
+                                    <a href="https://eyeweb.vercel.app" style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+                                        Start using Eye Web
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <!-- Footer -->
+                        <tr>
+                            <td style="padding: 24px 32px; background-color: #0a0a0a; border-top: 1px solid #222222;">
+                                <p style="margin: 0 0 8px; font-size: 13px; color: #666666; text-align: center;">
+                                    EyeWeb: Let's keep an eye on each other.
+                                </p>
+                                <p style="margin: 0; font-size: 12px; text-align: center;">
+                                    <a href="https://eyeweb.vercel.app" style="color: #ff0000; text-decoration: none;">Go to Eye Web</a>
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """

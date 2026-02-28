@@ -37,6 +37,7 @@ export default function Home() {
         <div className="container">
           <header className="header">
             <h1>Eye Web</h1>
+            <p className="home-typing-text">{t('home.tagline')}</p>
           </header>
 
           <Tabs tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
