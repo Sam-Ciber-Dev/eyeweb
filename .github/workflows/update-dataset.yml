@@ -41,7 +41,7 @@ jobs:
     steps:
       # 1. Checkout do código
       - name: 📥 Checkout do Repositório
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       # 2. Configurar Python
       - name: 🐍 Configurar Python ${{ env.PYTHON_VERSION }}
