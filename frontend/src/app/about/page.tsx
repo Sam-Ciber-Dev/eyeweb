@@ -19,84 +19,84 @@ interface TeamMember {
 const TEAM: TeamMember[] = [
   {
     name: 'Samuel Oliveira',
-    role: 'Lead Developer',
+    role: 'lead',
     github: 'Sam-Ciber-Dev',
     email: 'sam.oliveira.dev@gmail.com',
     linkedin: 'https://linkedin.com/in/jose-samuel-oliveira/',
     website: 'https://sam-ciber-dev.github.io',
     contributions: [
-      { task: 'Front-end', pct: 70 },
-      { task: 'Base de Dados', pct: 80 },
-      { task: 'Dataset', pct: 100 },
-      { task: "API's", pct: 80 },
-      { task: 'Área Admin', pct: 100 },
-      { task: 'Segurança', pct: 80 },
-      { task: 'SEO', pct: 20 },
-      { task: 'ChatBot Users', pct: 20 },
-      { task: 'Login System', pct: 100 },
+      { task: 'frontend', pct: 70 },
+      { task: 'database', pct: 80 },
+      { task: 'dataset', pct: 100 },
+      { task: 'apis', pct: 80 },
+      { task: 'admin', pct: 100 },
+      { task: 'security', pct: 80 },
+      { task: 'seo', pct: 20 },
+      { task: 'chatbot', pct: 20 },
+      { task: 'login', pct: 100 },
     ],
   },
   {
     name: 'Ana Rita Monteiro',
-    role: 'Designer & Developer',
+    role: 'designer',
     github: 'Galaxiay11',
     email: '',
     linkedin: 'https://www.linkedin.com/in/ana-rita-monteiro-b186a8359',
     website: '',
     contributions: [
-      { task: 'Interface', pct: 100 },
-      { task: 'Front-end', pct: 30 },
-      { task: 'Base de Dados', pct: 20 },
-      { task: 'SEO', pct: 50 },
-      { task: 'ChatBot Users', pct: 20 },
-      { task: 'Scripts de teste', pct: 20 },
-      { task: 'Politicas', pct: 100 },
-      { task: 'Relatório', pct: 60 },
-      { task: 'Diagramas', pct: 30 },
-      { task: 'PowerPoint', pct: 50 },
+      { task: 'interface', pct: 100 },
+      { task: 'frontend', pct: 30 },
+      { task: 'database', pct: 20 },
+      { task: 'seo', pct: 50 },
+      { task: 'chatbot', pct: 20 },
+      { task: 'testScripts', pct: 20 },
+      { task: 'policies', pct: 100 },
+      { task: 'report', pct: 60 },
+      { task: 'diagrams', pct: 30 },
+      { task: 'powerpoint', pct: 50 },
     ],
   },
   {
     name: 'Vanina Kollen',
-    role: 'Developer',
+    role: 'developer',
     github: 'vankol06',
     email: '',
     linkedin: 'https://www.linkedin.com/in/vanina-kollen-337762397',
     website: '',
     contributions: [
-      { task: 'Scripts de teste', pct: 40 },
-      { task: "API's", pct: 10 },
-      { task: 'SEO', pct: 20 },
-      { task: 'ChatBot Users', pct: 60 },
-      { task: 'Termos de Serviço', pct: 100 },
-      { task: 'Relatório', pct: 35 },
-      { task: 'PowerPoint', pct: 50 },
+      { task: 'testScripts', pct: 40 },
+      { task: 'apis', pct: 10 },
+      { task: 'seo', pct: 20 },
+      { task: 'chatbot', pct: 60 },
+      { task: 'terms', pct: 100 },
+      { task: 'report', pct: 35 },
+      { task: 'powerpoint', pct: 50 },
     ],
   },
   {
     name: 'Tiago Carvalho',
-    role: 'Developer',
+    role: 'developer',
     github: 'Tiago0612',
     email: 'tiago.fsc.06@gmail.com',
     linkedin: 'https://www.linkedin.com/in/tiago-carvalho-890938284',
     website: '',
     contributions: [
-      { task: 'Scripts de teste', pct: 40 },
-      { task: "API's", pct: 10 },
-      { task: 'SEO', pct: 10 },
-      { task: 'Segurança', pct: 20 },
-      { task: 'Relatório', pct: 5 },
+      { task: 'testScripts', pct: 40 },
+      { task: 'apis', pct: 10 },
+      { task: 'seo', pct: 10 },
+      { task: 'security', pct: 20 },
+      { task: 'report', pct: 5 },
     ],
   },
   {
     name: 'Francisco Ribeiro',
-    role: 'Developer',
+    role: 'developer',
     github: 'Xico20230',
     email: 'kikorafa01@gmail.com',
     linkedin: 'https://www.linkedin.com/in/franciscorcribeiro/',
     website: '',
     contributions: [
-      { task: 'Diagramas', pct: 70 },
+      { task: 'diagrams', pct: 70 },
     ],
   },
 ];
@@ -135,6 +135,8 @@ const i18n = {
     teamIcon: 'fa-solid fa-users',
     teamClickHint: 'Clica para ver mais',
     contribTitle: 'Desenvolvimento',
+    roles: { lead: 'Desenvolvedor Principal', designer: 'Designer e Desenvolvedora', developer: 'Desenvolvedor' } as Record<string, string>,
+    tasks: { frontend: 'Front-end', database: 'Base de Dados', dataset: 'Dataset', apis: "API's", admin: 'Área Admin', security: 'Segurança', seo: 'SEO', chatbot: 'ChatBot Users', login: 'Sistema de Login', interface: 'Interface', testScripts: 'Scripts de Teste', policies: 'Políticas', report: 'Relatório', diagrams: 'Diagramas', powerpoint: 'PowerPoint', terms: 'Termos de Serviço' } as Record<string, string>,
   },
   en: {
     subtitle: 'Next-generation cybersecurity platform. Protect your data with intelligence.',
@@ -168,6 +170,8 @@ const i18n = {
     teamIcon: 'fa-solid fa-users',
     teamClickHint: 'Click for more',
     contribTitle: 'Development',
+    roles: { lead: 'Lead Developer', designer: 'Designer & Developer', developer: 'Developer' } as Record<string, string>,
+    tasks: { frontend: 'Front-end', database: 'Database', dataset: 'Dataset', apis: "API's", admin: 'Admin Area', security: 'Security', seo: 'SEO', chatbot: 'ChatBot Users', login: 'Login System', interface: 'Interface', testScripts: 'Test Scripts', policies: 'Policies', report: 'Report', diagrams: 'Diagrams', powerpoint: 'PowerPoint', terms: 'Terms of Service' } as Record<string, string>,
   },
 };
 
@@ -339,7 +343,7 @@ export default function AboutPage() {
                 >
                   <div className="team-avatar">{getInitials(member.name)}</div>
                   <h4>{member.name}</h4>
-                  <div className="team-role">{member.role}</div>
+                  <div className="team-role">{t.roles[member.role] || member.role}</div>
                   {expandedMember !== i && (
                     <div className="team-click-hint">{t.teamClickHint}</div>
                   )}
@@ -353,7 +357,7 @@ export default function AboutPage() {
                           {member.contributions.map((c, j) => (
                             <div key={j} className="contrib-item">
                               <div className="contrib-label">
-                                <span>{c.task}</span>
+                                <span>{t.tasks[c.task] || c.task}</span>
                                 <span>{c.pct}%</span>
                               </div>
                               <div className="contrib-bar">
