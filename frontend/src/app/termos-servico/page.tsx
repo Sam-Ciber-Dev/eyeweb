@@ -12,7 +12,7 @@ const SECTIONS_PT = [
     content: (
       <>
         <p>
-          Ao aceder e utilizar o Eye Web Reborn, concorda com os presentes Termos de Serviço na sua totalidade.
+          Ao aceder e utilizar o Eye Web, concorda com os presentes Termos de Serviço na sua totalidade.
           Se não concordar com alguma das condições aqui descritas, não deverá utilizar a plataforma.
         </p>
         <p>
@@ -27,7 +27,7 @@ const SECTIONS_PT = [
     title: 'Descrição do Serviço',
     content: (
       <>
-        <p>O Eye Web Reborn é uma plataforma de cibersegurança que oferece:</p>
+        <p>O Eye Web é uma plataforma de cibersegurança que oferece:</p>
         <ul>
           <li><strong>Verificação de e-mails</strong> em bases de dados de fugas de dados (data breaches), utilizando o modelo K-Anonymity para proteção dos dados do utilizador.</li>
           <li><strong>Auditoria de segurança de palavras-passe</strong> — verificação local no navegador com comparação de hashes SHA-256 sem transmissão da password.</li>
@@ -85,7 +85,7 @@ const SECTIONS_PT = [
     content: (
       <>
         <p>
-          Todo o conteúdo, código-fonte, design, logótipos e funcionalidades do Eye Web Reborn são propriedade
+          Todo o conteúdo, código-fonte, design, logótipos e funcionalidades do Eye Web são propriedade
           dos seus criadores e estão protegidos por direitos de autor.
         </p>
         <p>
@@ -101,7 +101,7 @@ const SECTIONS_PT = [
     content: (
       <>
         <p>
-          O Eye Web Reborn é fornecido &quot;tal como está&quot; (<em>as is</em>). Embora nos esforcemos para manter informações
+          O Eye Web é fornecido &quot;tal como está&quot; (<em>as is</em>). Embora nos esforcemos para manter informações
           precisas e atualizadas, não garantimos que os resultados de verificação sejam 100% completos ou atuais.
         </p>
         <p>
@@ -176,7 +176,7 @@ const SECTIONS_EN = [
     title: 'Acceptance of Terms',
     content: (
       <>
-        <p>By accessing and using Eye Web Reborn, you agree to these Terms of Service in their entirety. If you do not agree with any of the conditions described here, you should not use the platform.</p>
+        <p>By accessing and using Eye Web, you agree to these Terms of Service in their entirety. If you do not agree with any of the conditions described here, you should not use the platform.</p>
         <p>Continued use of the platform after changes to the terms constitutes automatic acceptance of the updated conditions. We recommend periodically checking this page.</p>
       </>
     ),
@@ -186,7 +186,7 @@ const SECTIONS_EN = [
     title: 'Service Description',
     content: (
       <>
-        <p>Eye Web Reborn is a cybersecurity platform that offers:</p>
+        <p>Eye Web is a cybersecurity platform that offers:</p>
         <ul>
           <li><strong>Email verification</strong> against data breach databases, using the K-Anonymity model to protect user data.</li>
           <li><strong>Password security audit</strong> — local browser verification with SHA-256 hash comparison without transmitting the password.</li>
@@ -234,7 +234,7 @@ const SECTIONS_EN = [
     title: 'Intellectual Property',
     content: (
       <>
-        <p>All content, source code, design, logos and features of Eye Web Reborn are the property of its creators and are protected by copyright.</p>
+        <p>All content, source code, design, logos and features of Eye Web are the property of its creators and are protected by copyright.</p>
         <p>Reproduction, modification, distribution or commercial use of any component of the platform without prior written authorization is prohibited.</p>
       </>
     ),
@@ -244,7 +244,7 @@ const SECTIONS_EN = [
     title: 'Limitation of Liability',
     content: (
       <>
-        <p>Eye Web Reborn is provided &quot;as is&quot;. While we strive to maintain accurate and up-to-date information, we do not guarantee that verification results are 100% complete or current.</p>
+        <p>Eye Web is provided &quot;as is&quot;. While we strive to maintain accurate and up-to-date information, we do not guarantee that verification results are 100% complete or current.</p>
         <p>The absence of results in a verification <strong>does not guarantee</strong> that the data has never been compromised. Results depend on the databases available at the time of the query.</p>
         <p>We are not responsible for direct, indirect, incidental or consequential damages resulting from the use or inability to use the platform.</p>
       </>

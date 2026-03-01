@@ -85,12 +85,12 @@ export default function CompleteSignupPage() {
 
     // Validações
     if (!isPasswordValid()) {
-      setError('A password não cumpre os requisitos mínimos.');
+      setError('Password does not meet the minimum requirements.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('As passwords não coincidem.');
+      setError('Passwords do not match.');
       return;
     }
 
@@ -115,7 +115,7 @@ export default function CompleteSignupPage() {
       
     } catch (err: unknown) {
       console.error('Complete signup error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao configurar conta. Tenta novamente.';
+      const errorMessage = err instanceof Error ? err.message : 'Error setting up account. Please try again.';
       setError(errorMessage);
       setIsSaving(false);
     }
@@ -126,7 +126,7 @@ export default function CompleteSignupPage() {
       <div className="auth-container">
         <div className="auth-loading">
           <div className="spinner"></div>
-          <p>A carregar...</p>
+          <p>Loading...</p>
         </div>
       </div>
     );
@@ -141,21 +141,21 @@ export default function CompleteSignupPage() {
             <i className="fa-solid fa-eye"></i>
             <span>Eye Web</span>
           </Link>
-          <h1>Completa o registo</h1>
-          <p>Define uma password para a tua conta</p>
+          <h1>Complete sign up</h1>
+          <p>Set a password for your account</p>
         </div>
 
         {/* Info do Google */}
         <div className="auth-google-info">
           <i className="fa-brands fa-google"></i>
-          <span>Conta Google: {email}</span>
+          <span>Google account: {email}</span>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="auth-form">
           {/* Display Name */}
           <div className="form-group">
-            <label htmlFor="displayName">Nome de exibição</label>
+            <label htmlFor="displayName">Display name</label>
             <div className="input-wrapper">
               <i className="fa-solid fa-user"></i>
               <input
@@ -163,7 +163,7 @@ export default function CompleteSignupPage() {
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="O teu nome"
+                placeholder="Your name"
               />
             </div>
           </div>
@@ -194,19 +194,19 @@ export default function CompleteSignupPage() {
               <ul>
                 <li className={passwordStrength.hasMinLength ? 'valid' : 'invalid'}>
                   <i className={`fa-solid ${passwordStrength.hasMinLength ? 'fa-check' : 'fa-xmark'}`}></i>
-                  Mínimo 8 caracteres
+                  Minimum 8 characters
                 </li>
                 <li className={passwordStrength.hasUppercase ? 'valid' : 'invalid'}>
                   <i className={`fa-solid ${passwordStrength.hasUppercase ? 'fa-check' : 'fa-xmark'}`}></i>
-                  Uma letra maiúscula
+                  One uppercase letter
                 </li>
                 <li className={passwordStrength.hasLowercase ? 'valid' : 'invalid'}>
                   <i className={`fa-solid ${passwordStrength.hasLowercase ? 'fa-check' : 'fa-xmark'}`}></i>
-                  Uma letra minúscula
+                  One lowercase letter
                 </li>
                 <li className={passwordStrength.hasNumber ? 'valid' : 'invalid'}>
                   <i className={`fa-solid ${passwordStrength.hasNumber ? 'fa-check' : 'fa-xmark'}`}></i>
-                  Um número
+                  One number
                 </li>
               </ul>
             </div>
@@ -214,7 +214,7 @@ export default function CompleteSignupPage() {
 
           {/* Confirm Password */}
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirmar Password</label>
+            <label htmlFor="confirmPassword">Confirm Password</label>
             <div className="input-wrapper">
               <i className="fa-solid fa-lock"></i>
               <input
@@ -246,12 +246,12 @@ export default function CompleteSignupPage() {
             {isSaving ? (
               <>
                 <i className="fa-solid fa-spinner fa-spin"></i>
-                <span>A guardar...</span>
+                <span>Saving...</span>
               </>
             ) : (
               <>
                 <i className="fa-solid fa-check"></i>
-                <span>Concluir registo</span>
+                <span>Complete sign up</span>
               </>
             )}
           </button>

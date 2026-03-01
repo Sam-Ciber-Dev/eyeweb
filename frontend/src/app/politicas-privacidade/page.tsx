@@ -12,7 +12,7 @@ const SECTIONS_PT = [
     content: (
       <>
         <p>
-          O Eye Web Reborn compromete-se a proteger a privacidade e os dados pessoais dos seus utilizadores.
+          O Eye Web compromete-se a proteger a privacidade e os dados pessoais dos seus utilizadores.
           Esta Política de Privacidade descreve de forma transparente quais os dados que recolhemos, como
           os utilizamos, como os protegemos e quais os seus direitos enquanto utilizador.
         </p>
@@ -253,7 +253,7 @@ const SECTIONS_EN = [
     title: 'Introduction',
     content: (
       <>
-        <p>Eye Web Reborn is committed to protecting the privacy and personal data of its users. This Privacy Policy transparently describes what data we collect, how we use it, how we protect it and what your rights are as a user.</p>
+        <p>Eye Web is committed to protecting the privacy and personal data of its users. This Privacy Policy transparently describes what data we collect, how we use it, how we protect it and what your rights are as a user.</p>
         <p>The platform was built with the principle of <strong>privacy by design</strong>, ensuring that data protection is integrated into every component of the system from its inception.</p>
       </>
     ),

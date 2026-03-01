@@ -203,11 +203,11 @@ export default function AuthCallbackPage() {
             animation: 'spin 0.8s linear infinite',
             margin: '0 auto 16px',
           }} />
-          <p>A processar autenticação...</p>
+          <p>Processing authentication...</p>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       ) : (
-        <p>Erro na autenticação. A redirecionar...</p>
+        <p>Authentication error. Redirecting...</p>
       )}
     </div>
   );

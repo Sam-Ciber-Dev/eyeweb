@@ -34,7 +34,7 @@ export default function LoginSuccessPage() {
       <div className="success-container">
         <div className="success-loading">
           <i className="fa-solid fa-spinner fa-spin"></i>
-          <span>A carregar...</span>
+          <span>Loading...</span>
         </div>
       </div>
     );
@@ -51,15 +51,15 @@ export default function LoginSuccessPage() {
         </div>
 
         {/* Mensagem */}
-        <h1>Login efetuado com sucesso!</h1>
+        <h1>Login successful!</h1>
         <p className="success-welcome">
-          Bem-vindo de volta, <strong>{user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'utilizador'}</strong>!
+          Welcome back, <strong>{user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'user'}</strong>!
         </p>
 
         {/* Info de redirecionamento */}
         <div className="success-redirect-info">
           <i className="fa-solid fa-clock"></i>
-          <span>A redirecionar em {countdown} segundos...</span>
+          <span>Redirecting in {countdown} seconds...</span>
         </div>
 
         {/* Barra de progresso */}

@@ -465,7 +465,7 @@ export function withAuth<P extends object>(
       return (
         <div className="loading-container">
           <div className="spinner"></div>
-          <p>A carregar...</p>
+          <p>Loading...</p>
         </div>
       );
     }

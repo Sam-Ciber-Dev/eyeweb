@@ -119,6 +119,8 @@ body {
 
 .eye-container.clicked .pupil {
   background: white;
+  transform: translate(-50%, -50%) !important;
+  transition: transform 0.4s ease, background 1.5s ease;
 }
 
 @keyframes scaleAndFade {

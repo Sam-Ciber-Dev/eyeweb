@@ -70,6 +70,9 @@ export default function EyeIntro({ onComplete }: EyeIntroProps) {
   const handleClick = () => {
     setClicked(true);
     
+    // Centrar a pupila no olho ao clicar
+    setPupilStyle({ transform: 'translate(-50%, -50%)' });
+    
     // Guardar em sessionStorage que já foi visto
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(SESSION_KEY, 'true');
