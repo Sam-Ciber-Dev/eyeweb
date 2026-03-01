@@ -22,11 +22,20 @@ export const metadata: Metadata = {
     siteName: 'Eye Web',
     title: 'Eye Web',
     description: 'Check if your personal data has been exposed in data breaches. Free cybersecurity tool with full privacy using K-Anonymity.',
+    images: [
+      {
+        url: '/social-preview.png',
+        width: 1280,
+        height: 640,
+        alt: 'Eye Web — Data Breach & Cybersecurity Checker',
+      },
+    ],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'Eye Web',
     description: 'Check if your personal data has been exposed in data breaches.',
+    images: ['/social-preview.png'],
   },
   robots: {
     index: true,

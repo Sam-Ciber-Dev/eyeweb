@@ -28,6 +28,12 @@
   }
 }
 
+/* Mobile: opacity-only animation (no transform) so position:fixed children work */
+@keyframes ewFadeInMobile {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 /* ═══ LAUNCHER (botao flutuante) ═══ */
 .ew-launcher {
   width: 60px;
@@ -309,6 +315,10 @@
   .ew-widget {
     bottom: 65px;
     right: 10px;
+    /* Remove transform-based animation so position:fixed children
+       are relative to viewport, not this container */
+    animation: ewFadeInMobile 0.5s ease forwards;
+    transform: none !important;
   }
 
   .ew-box {
