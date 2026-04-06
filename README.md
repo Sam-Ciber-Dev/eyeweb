@@ -1,326 +1,79 @@
-# EyeWeb Reborn
-## [ PORTUGUÊS - PT ]
+# EyeWeb — Data Breach Verification Platform
 
-Projeto Final do 2.º Ano de Ctesp em Cibersegurança.
+## Overview
 
-EyeWeb é uma plataforma de verificação de fugas de dados (data breaches) desenvolvida com foco na segurança, privacidade e boas práticas de arquitetura segura.  
-O sistema permite verificar e-mails, números de telemóvel e palavras-passe sem nunca expor os dados reais do utilizador ao servidor.
+**EyeWeb** is a cybersecurity platform that verifies emails, phone numbers, and passwords against known data breaches, and scans URLs for security threats using AI analysis — all without ever exposing the user’s real data to the server. Developed as the final project (PAP) for the 2nd year CTeSP in Cybersecurity at [ISTEC](https://istec-porto.pt) (Instituto Superior de Tecnologias Avançadas do Porto), the platform demonstrates practical skills in secure architecture, privacy-preserving data handling, full-stack web development, and AI integration.
 
-A aplicação implementa o modelo K-Anonymity, garantindo que apenas um prefixo do hash SHA-256 é enviado para a API, mantendo a total privacidade dos dados sensíveis.
+**Live:** [eyeweb.vercel.app](https://eyeweb.vercel.app)
 
----
+## How It Works
 
-## Funcionalidades
+### Privacy Model (K-Anonymity)
 
-| Funcionalidade | Descrição |
-|----------------|-----------|
-| Verificador de E-mail | Verifica se um endereço de e-mail foi exposto em fugas de dados |
-| Verificador de Número de Telemóvel | Suporte para aproximadamente 200 países |
-| Verificador de Palavra-Passe | Avalia a robustez e verifica exposição em breaches |
-| K-Anonymity | O servidor nunca recebe os dados reais |
-| Infraestrutura Gratuita | Deploy com Vercel, Render e Hugging Face |
+The platform implements the K-Anonymity model to ensure user data never leaves the browser in raw form. When a user submits an email, phone number, or password, the browser generates a SHA-256 hash locally and sends only the first 5 characters (the prefix) to the API. The backend returns all records matching that prefix, and the final comparison of the full hash happens entirely in the browser. The server never knows which specific record was being checked.
 
----
+```
+Browser (Client)
+└─ SHA-256("user@example.com") → e3b0c44...
+   └─ Send prefix: "e3b0c"
+      └─ API returns all hashes starting with "e3b0c"
+         └─ Browser compares full hash locally
+```
 
-## Como Funciona a Privacidade (K-Anonymity)
+### Email Checker
 
-Browser (Cliente)
-└─ SHA-256 (hash completo)
-└─ Envio apenas do prefixo (5 caracteres)
-└─ API (Backend)
-└─ Lista de hashes candidatos
-└─ Comparação local no browser
+The user enters an email address. The browser hashes it with SHA-256 and sends only the 5-character prefix to the backend. The API queries partitioned Parquet files hosted on Hugging Face Datasets, returning all candidate records. The browser compares the full hash locally and displays any matching breaches, including the breach name, date, and types of exposed data (passwords, IPs, usernames, credit cards, browsing history). Personalized security recommendations are generated based on what was exposed.
 
+### Phone Number Checker
 
-Resultado:  
-O servidor nunca recebe o e-mail, número de telemóvel ou palavra-passe real. Apenas um prefixo que corresponde a milhares de valores possíveis.
+Supports approximately 200 countries with a searchable dropdown showing country flags (via `flagcdn.com`) and dialing codes. The phone number is normalized (country code + digits), hashed, and checked using the same K-Anonymity process as the email checker.
 
----
+### Password Checker
 
-## Stack Tecnológica
+Evaluates password strength in real time using a scoring system (0–10) that checks length, character diversity, and common patterns. When the user clicks "Check", the password hash prefix is sent to a separate Hugging Face Dataset of known compromised passwords. If the password is found in the breach dataset, the strength score is automatically downgraded to "Weak" regardless of complexity.
 
-### Frontend
-- Next.js 14 (App Router)
-- React
-- TypeScript
-- react-select
-- CSS Variables
+### URL Security Scanner
 
-### Backend
-- FastAPI
-- Python 3.11+
-- Hugging Face Datasets
-- Parquet
+The URL checker combines multiple analysis sources into a single verdict:
 
-### DevOps e Infraestrutura
-- Vercel (Frontend)
-- Render (Backend)
-- GitHub Actions (CI/CD)
-- Dependabot (Monitorização de vulnerabilidades)
+1. **Google Safe Browsing** — checks the URL against Google’s database of known malicious sites
+2. **SSL Certificate Validation** — verifies HTTPS configuration and certificate validity
+3. **AI Analysis (Groq LLaMA 3.3 70B)** — generates a natural-language opinion about the URL’s safety, displayed with a typewriter animation
 
----
+Results are cached in Supabase. Previously scanned URLs return instant results while a background re-verification runs. The scanner includes client-side validation that blocks dangerous protocols, private IPs, and malformed URLs before any request is sent.
 
-## Estrutura do Projeto
+### AI Chat Assistant
 
-eye-web-monorepo/
+A floating chat widget allows users to ask cybersecurity questions. Messages are sent to Groq’s LLaMA 3.3 70B model via a dedicated backend endpoint. The conversation persists in session storage and supports live language switching — when the user changes language, bot responses are automatically re-translated. The chat uses a typewriter effect for responses and includes a cooldown between messages to prevent abuse.
 
-├── frontend/
+### Admin Dashboard
 
-│ ├── src/
+Administrators access a separate dashboard protected by manual login only (Google OAuth is blocked for admin accounts) and a custom MFA system:
 
-│ ├── .env.example
-
-│ └── package.json
-
-│
-
-├── backend/
-
-│ ├── app/
-
-│ ├── .env.example
-
-│ ├── Dockerfile
-
-│ └── requirements.txt
-
-│
-
-├── updater/
-
-│ ├── updater.py
-
-│ ├── password_updater.py
-
-│ ├── .env.example
-
-│ └── requirements.txt
-
-│
-
-├── .github/workflows/
-
-├── .gitignore
-
-└── README.md
-
-
----
-
-## Instalação Local
-
-### Pré-requisitos
-- Node.js 18+
-- Python 3.11+
-- Conta gratuita no Hugging Face
-
-### 1. Clonar o repositório
-git clone https://github.com/SEU-REPOSITORIO.git
-cd eyeweb
-
-### 2. Configurar variáveis de ambiente
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env.local
-cp updater/.env.example updater/.env
-Nunca fazer commit de ficheiros .env reais.
-
-### 3. Iniciar Backend
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-API: http://localhost:8000
-Documentação: http://localhost:8000/docs
-
-### 4. Iniciar Frontend
-cd frontend
-npm install
-npm run dev
-Aplicação: http://localhost:3000
-
----
-
-
-## API Endpoints
-
-Breaches (E-mail / Telefone)
-
-|Método	|Endpoint	|Descrição|
-|-----|---------|-----------|
-|GET |	/api/v1/breaches/check/{prefix}	| Verifica prefixo de hash|
-|GET	| /api/v1/breaches/stats |	Estatísticas|
-
-Passwords
-
-|Método	|Endpoint	|Descrição|
-|-----|---------|-----------|
-|GET	 | /api/v1/passwords/check/{prefix}	| Verifica prefixo|
-|GET	| /api/v1/passwords/stats |	Estatísticas|
-
----
-
-## Deploy em Produção
-
-### Backend (Render)
-- Root Directory: backend
-- Build Command: pip install -r requirements.txt
-- Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-
-### Frontend (Vercel)
-- Root Directory: frontend
-- Framework: Next.js
-- Variável: NEXT_PUBLIC_API_URL
-
----
-
-## Segurança
-
-- K-Anonymity
-- Hashing SHA-256
-- HTTPS
-- Rate Limiting
-- Variáveis de ambiente para credenciais
-- Monitorização automática de dependências
-
----
-
-## Limitações
-- Dependente de datasets públicos
-- Limitado a fugas conhecidas
-- Não substitui auditorias profissionais de segurança
-
----
-
-## Contexto Académico
-
-Projeto desenvolvido no âmbito da disciplina Projeto Final do 2.º Ano Ctesp em Cibersegurança.
-
-
----
-
-## [ ENGLISH - EN ]
-
-Final Project of the 2nd Year CTeSP in Cybersecurity.
-
-EyeWeb is a data breach verification platform developed with a strong focus on security, privacy, and secure architecture best practices.  
-The system allows users to check emails, phone numbers, and passwords without ever exposing the user's real data to the server.
-
-The application implements the K-Anonymity model, ensuring that only a SHA-256 hash prefix is sent to the API, maintaining full privacy of sensitive data.
-
----
-
-## Features
-
-| Feature | Description |
-|----------|-------------|
-| Email Checker | Verifies whether an email address has been exposed in data breaches |
-| Phone Number Checker | Supports approximately 200 countries |
-| Password Checker | Evaluates strength and checks exposure in breaches |
-| K-Anonymity | The server never receives raw user data |
-| Free Infrastructure | Deployed using Vercel, Render, and Hugging Face |
-
----
-
-## How Privacy Works (K-Anonymity)
-
-Browser (Client)  
-└─ SHA-256 (full hash)  
-└─ Only prefix sent (5 characters)  
-└─ API (Backend)  
-└─ Candidate hash list  
-└─ Local comparison in the browser  
-
-Result:  
-The server never receives the real email, phone number, or password. Only a prefix that corresponds to thousands of possible values.
-
----
+- **MFA**: A standalone Python desktop application (`eyeweb_auth.py`) generates TOTP codes using HMAC-SHA256 with 30-second intervals. The MFA code is never transmitted over the web — it exists only on the admin’s local machine. Two failed attempts result in a 72-hour ban by IP and hardware fingerprint.
+- **Device Fingerprinting**: Canvas, WebGL, Audio, Screen, CPU, RAM, Timezone, and Platform signals are combined into a weighted score (≥70 points = same device). A separate hardware-only hash detects the same device across different browsers.
+- **Traffic Monitor**: Real-time visitor logs with geolocation, VPN detection, device fingerprints, IP/device blocking, and automated monthly/yearly reports.
+- **Health Monitor**: Live status checks for all external services (Supabase, Render, Hugging Face, Groq, Google Safe Browsing, URLScan).
+- **Email Manager**: Newsletter broadcasting to subscribed users via Brevo SMTP, with subscriber management and ban controls.
+- **Admin Chat**: Real-time internal messaging between administrators using Supabase Realtime, with typing indicators, file sharing, and online presence tracking.
 
 ## Technology Stack
 
-### Frontend
-- Next.js 14 (App Router)
-- React
-- TypeScript
-- react-select
-- CSS Variables
-
-### Backend
-- FastAPI
-- Python 3.11+
-- Hugging Face Datasets
-- Parquet
-
-### DevOps & Infrastructure
-- Vercel (Frontend)
-- Render (Backend)
-- GitHub Actions (CI/CD)
-- Dependabot (Dependency vulnerability monitoring)
-
----
-
-## Project Structure
-
-eye-web-monorepo/
-
-├── frontend/  
-│ ├── src/  
-│ ├── .env.example  
-│ └── package.json  
-│  
-├── backend/  
-│ ├── app/  
-│ ├── .env.example  
-│ ├── Dockerfile  
-│ └── requirements.txt  
-│  
-├── updater/  
-│ ├── updater.py  
-│ ├── password_updater.py  
-│ ├── .env.example  
-│ └── requirements.txt  
-│  
-├── .github/workflows/  
-├── .gitignore  
-└── README.md  
-
----
-
-## Local Installation
-
-### Requirements
-- Node.js 18+
-- Python 3.11+
-- Free Hugging Face account
-
-### 1. Clone the repository
-git clone https://github.com/YOUR-REPOSITORY.git
-cd eyeweb
-
-
-### 2. Configure environment variables
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env.local
-cp updater/.env.example updater/.env
-
-Never commit real `.env` files.
-
-### 3. Start Backend
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-
-
-API: http://localhost:8000  
-Documentation: http://localhost:8000/docs  
-
-### 4. Start Frontend
-cd frontend
-npm install
-npm run dev
-
-
-Application: http://localhost:3000  
-
----
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Frontend** | Next.js 14 (App Router) | React-based SSR framework |
+| **Language** | TypeScript | Type-safe frontend development |
+| **Backend** | FastAPI (Python 3.11+) | Async REST API |
+| **Database** | Supabase (PostgreSQL) | Auth, Realtime, Storage, Row-Level Security |
+| **Breach Data** | Hugging Face Datasets (Parquet) | Partitioned breach records (256 files) |
+| **AI** | Groq (LLaMA 3.3 70B) | URL analysis, admin chat, user chat |
+| **URL Scanning** | Google Safe Browsing, URLScan.io | Threat detection APIs |
+| **Email** | Brevo SMTP | Transactional and newsletter emails |
+| **CAPTCHA** | Cloudflare Turnstile | Bot protection on auth forms |
+| **Frontend Hosting** | Vercel (CDG1, Paris) | Global CDN with automatic deploys |
+| **Backend Hosting** | Render (Frankfurt) | Dockerized API with auto-deploy |
+| **CI/CD** | GitHub Actions | Dataset sync, dependency updates |
+| **Security Monitoring** | Dependabot | Automatic vulnerability alerts |
 
 ## API Endpoints
 
@@ -328,52 +81,202 @@ Application: http://localhost:3000
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | /api/v1/breaches/check/{prefix} | Checks hash prefix |
-| GET | /api/v1/breaches/stats | Dataset statistics |
+| GET | `/api/v1/breaches/check/{prefix}` | Returns candidate hashes matching the prefix |
+| GET | `/api/v1/breaches/stats` | Dataset statistics (record count, partitions) |
 
 ### Passwords
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | /api/v1/passwords/check/{prefix} | Checks prefix |
-| GET | /api/v1/passwords/stats | Dataset statistics |
+| GET | `/api/v1/passwords/check/{prefix}` | Returns candidate password hashes |
+| GET | `/api/v1/passwords/stats` | Dataset statistics |
 
----
+### URL Scanner
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/urls/check` | Submit URL for analysis |
+| GET | `/api/v1/urls/status?hash={hash}` | Check scan status and result |
+| GET | `/api/v1/urls/health` | Scanner service health |
+
+### Authentication
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/verify-mfa` | Validate admin TOTP code |
+| POST | `/api/auth/check-ban` | Check IP/device ban status |
+| GET | `/api/auth/admin/verify` | Verify admin session token |
+
+### Admin
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/traffic/*` | Traffic logs, reports, blocking |
+| POST | `/api/admin/chat/*` | Internal admin chat |
+| POST | `/api/admin/emails/*` | Newsletter management |
+| GET | `/api/admin/health` | Service health checks |
+
+## Project Structure
+
+```
+eye-web-monorepo/
+├── frontend/
+│   ├── src/
+│   │   ├── app/           — Pages (home, login, signup, admin, perfil, about)
+│   │   ├── components/    — Reusable UI (Navbar, ChatWidget, UrlChecker, etc.)
+│   │   ├── contexts/      — React contexts (Auth, Language, AdminPresence)
+│   │   ├── lib/           — API client, fingerprint engine, Supabase client
+│   │   └── i18n/          — PT/EN translations (300+ keys)
+│   ├── public/
+│   ├── package.json
+│   └── next.config.js
+│
+├── backend/
+│   ├── app/
+│   │   ├── routers/       — breach, password, url, auth, admin, chat, traffic
+│   │   ├── services/      — Business logic for each router
+│   │   ├── config.py      — Centralized settings (env vars)
+│   │   ├── dependencies.py — Admin JWT verification
+│   │   ├── models.py      — Pydantic schemas
+│   │   └── main.py        — FastAPI app with scheduled tasks
+│   ├── Dockerfile
+│   ├── render.yaml
+│   └── requirements.txt
+│
+├── updater/
+│   ├── updater.py          — Breach dataset generator (SHA-256, Parquet, HF upload)
+│   ├── password_updater.py — Password dataset generator
+│   └── requirements.txt
+│
+├── .github/
+│   ├── dependabot.yml
+│   └── workflows/
+│       ├── dependabot-auto-merge.yml
+│       └── update-dataset.yml
+│
+├── .gitignore
+└── README.md
+```
+
+## Security Measures
+
+| Measure | Implementation |
+|---------|---------------|
+| **K-Anonymity** | Only hash prefixes leave the browser; full comparison is client-side |
+| **SHA-256 Hashing** | All sensitive data hashed before any network request |
+| **HTTPS** | All communications encrypted in transit |
+| **Rate Limiting** | Per-IP request throttling on URL scanner |
+| **SSRF Protection** | Private IPs, localhost, and dangerous protocols blocked server-side |
+| **CSRF Protection** | Cloudflare Turnstile on auth forms, origin validation |
+| **Admin MFA** | Offline TOTP generator — codes never traverse the network |
+| **2-Strikes Policy** | 2 failed MFA attempts = 72-hour ban by IP + hardware fingerprint |
+| **Device Fingerprinting** | Canvas, WebGL, Audio, Screen hashing for device identification |
+| **Input Sanitization** | URL validation, XSS prevention, protocol filtering |
+| **Environment Variables** | All secrets via env vars, never committed to source |
+| **Dependency Monitoring** | Dependabot alerts with automatic security PRs |
+| **Row-Level Security** | Supabase RLS policies on all database tables |
+| **Log Rotation** | Automatic cleanup of traffic logs older than 30 days |
+
+## Local Installation
+
+### Prerequisites
+
+- Node.js 18+
+- Python 3.11+
+- Free accounts: [Supabase](https://supabase.com), [Hugging Face](https://huggingface.co), [Groq](https://console.groq.com)
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/Sam-Ciber-Dev/eyeweb.git
+cd eyeweb
+```
+
+### 2. Configure environment variables
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
+cp updater/.env.example updater/.env
+```
+
+Never commit real `.env` files.
+
+### 3. Start the backend
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+API: http://localhost:8000 — Documentation: http://localhost:8000/docs
+
+### 4. Start the frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Application: http://localhost:3000
 
 ## Production Deployment
 
 ### Backend (Render)
-- Root Directory: backend
-- Build Command: pip install -r requirements.txt
-- Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+| Setting | Value |
+|---------|-------|
+| Root Directory | `backend` |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| Runtime | Docker |
+| Region | Frankfurt (EU) |
 
 ### Frontend (Vercel)
-- Root Directory: frontend
-- Framework: Next.js
-- Variable: NEXT_PUBLIC_API_URL
 
----
-
-## Security
-
-- K-Anonymity implementation
-- SHA-256 hashing
-- HTTPS
-- Rate limiting
-- Environment variables for credentials
-- Automatic dependency vulnerability monitoring
-
----
+| Setting | Value |
+|---------|-------|
+| Root Directory | `frontend` |
+| Framework | Next.js |
+| Environment Variable | `NEXT_PUBLIC_API_URL` |
+| Region | CDG1 (Paris) |
 
 ## Limitations
 
-- Dependent on public datasets
-- Limited to known breaches
+- Dependent on public breach datasets — limited to known breaches
+- Free-tier backend hosting imposes cold-start latency (~30 seconds after inactivity)
+- URL scanner depends on third-party API availability (Google Safe Browsing, URLScan.io)
 - Not a replacement for professional security audits
-
----
 
 ## Academic Context
 
-Developed as part of the Final Project course of the 2nd Year CTeSP in Cybersecurity.
+Developed as the final project (PAP — Prova de Aptidão Profissional) for the 2nd year CTeSP in Cybersecurity at [ISTEC Porto](https://istec-porto.pt) (Instituto Superior de Tecnologias Avançadas do Porto), academic year 2025/2026.
 
+## Contact
+
+- **Email:** sam.oliveira.dev@gmail.com
+- **Compose in Gmail:** [Gmail](https://mail.google.com/mail/?view=cm&fs=1&to=sam.oliveira.dev@gmail.com&su=EyeWeb%20inquiry&body=Hi%20Samuel%2C%0A)
+- **Compose in Outlook:** [Outlook](https://outlook.live.com/owa/?path=/mail/action/compose&to=sam.oliveira.dev@gmail.com&subject=EyeWeb%20inquiry&body=Hi%20Samuel%2C%0A)
+- **LinkedIn:** [linkedin.com/in/jose-samuel-oliveira](https://www.linkedin.com/in/jose-samuel-oliveira)
+- **Website:** [sam-ciber-dev.github.io](https://sam-ciber-dev.github.io)
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+## Social Preview
+
+<img src="frontend/public/social-preview.png" alt="EyeWeb — Data Breach Verification Platform" width="640">
+
+## Badges
+
+![Next.js](https://img.shields.io/badge/Next.js_14-000000?style=for-the-badge&logo=next.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
+![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)

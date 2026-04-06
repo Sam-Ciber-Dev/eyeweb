@@ -1,0 +1,18 @@
+{
+  "category": "defensive",
+  "title": {
+    "pt": "EyeWeb",
+    "en": "EyeWeb"
+  },
+  "description": {
+    "pt": "Plataforma de cibersegurança que verifica emails, telefones e passwords em breaches conhecidos usando K-Anonymity (SHA-256), e analisa URLs com Google Safe Browsing e IA (Groq LLaMA 3.3 70B) — sem nunca expor os dados reais do utilizador ao servidor. Projeto final (PAP) do CTeSP em Cibersegurança no ISTEC Porto.",
+    "en": "Cybersecurity platform that verifies emails, phone numbers, and passwords against known data breaches using K-Anonymity (SHA-256), and scans URLs with Google Safe Browsing and AI (Groq LLaMA 3.3 70B) — without ever exposing the user's real data to the server. Final project (PAP) for the CTeSP in Cybersecurity at ISTEC Porto."
+  },
+  "technologies": ["Next.js", "TypeScript", "FastAPI", "Python", "Supabase", "Groq AI", "K-Anonymity", "SHA-256"],
+  "icon": "fas fa-shield-alt",
+  "report": {
+    "pt": "docs/EyeWeb_Relatorio_PT.pdf",
+    "en": "docs/EyeWeb_Report_ENG.pdf"
+  },
+  "order": 1
+}
