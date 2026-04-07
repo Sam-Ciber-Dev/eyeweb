@@ -229,13 +229,15 @@ async def lifespan(app: FastAPI):
 # CRIAÇÃO DA APLICAÇÃO
 # ===========================================
 
+_is_production = settings.ENVIRONMENT == "production"
+
 app = FastAPI(
     title=settings.API_TITLE,
     description=settings.API_DESCRIPTION,
     version=settings.API_VERSION,
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
     lifespan=lifespan
 )
 
@@ -247,7 +249,7 @@ app = FastAPI(
 # CORS - permite requests do frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -421,5 +423,5 @@ if settings.DEBUG:
             "hf_dataset_repo": settings.HF_DATASET_REPO,
             "cache_max_size": settings.CACHE_MAX_SIZE,
             "cache_ttl": settings.CACHE_TTL_SECONDS,
-            "cors_origins": settings.CORS_ORIGINS
+            "cors_origins": settings.allowed_origins
         }

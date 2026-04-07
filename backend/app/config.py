@@ -95,10 +95,20 @@ class Settings(BaseSettings):
     # Origens permitidas (frontend)
     # Em produção, especificar apenas os domínios do frontend
     CORS_ORIGINS: list = [
-        "http://localhost:3000",      # Next.js dev
-        "http://127.0.0.1:3000",
         "https://eyeweb.vercel.app",  # Produção Vercel
     ]
+    
+    # Origens adicionais para desenvolvimento local
+    CORS_ORIGINS_DEV: list = [
+        "http://localhost:3000",      # Next.js dev
+        "http://127.0.0.1:3000",
+    ]
+    
+    @property
+    def allowed_origins(self) -> list:
+        if self.ENVIRONMENT == "production":
+            return self.CORS_ORIGINS
+        return self.CORS_ORIGINS + self.CORS_ORIGINS_DEV
     
     # ===========================================
     # RATE LIMITING
