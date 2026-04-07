@@ -1,10 +1,10 @@
-# EyeWeb — Data Breach Verification Platform
+# EyeWeb: Data Breach Verification Platform
+
+**Live:** [eyeweb.vercel.app](https://eyeweb.vercel.app)
 
 ## Overview
 
-**EyeWeb** is a cybersecurity platform that verifies emails, phone numbers, and passwords against known data breaches, and scans URLs for security threats using AI analysis — all without ever exposing the user’s real data to the server. Developed as the final project (PAP) for the 2nd year CTeSP in Cybersecurity at [ISTEC](https://istec-porto.pt) (Instituto Superior de Tecnologias Avançadas do Porto), the platform demonstrates practical skills in secure architecture, privacy-preserving data handling, full-stack web development, and AI integration.
-
-**Live:** [eyeweb.vercel.app](https://eyeweb.vercel.app)
+**EyeWeb** is a cybersecurity platform that verifies emails, phone numbers, and passwords against known data breaches, and scans URLs for security threats using AI analysis, all without ever exposing the user’s real data to the server. Developed as the final project for the 2nd year CTeSP in Cybersecurity at [ISTEC](https://istec-porto.pt)(Instituto Superior de Tecnologias Avançadas do Porto) academic year 2025/2026. The platform demonstrates practical skills in secure architecture, privacy-preserving data handling, full-stack web development, and AI integration.
 
 ## How It Works
 
@@ -245,14 +245,10 @@ Application: http://localhost:3000
 
 ## Limitations
 
-- Dependent on public breach datasets — limited to known breaches
+- Dependent on public breach datasets, limited to known breaches
 - Free-tier backend hosting imposes cold-start latency (~30 seconds after inactivity)
 - URL scanner depends on third-party API availability (Google Safe Browsing, URLScan.io)
 - Not a replacement for professional security audits
-
-## Academic Context
-
-Developed as the final project (PAP — Prova de Aptidão Profissional) for the 2nd year CTeSP in Cybersecurity at [ISTEC Porto](https://istec-porto.pt) (Instituto Superior de Tecnologias Avançadas do Porto), academic year 2025/2026.
 
 ## Contact
 
