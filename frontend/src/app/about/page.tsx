@@ -90,7 +90,7 @@ const TEAM: TeamMember[] = [
   },
   {
     name: 'Francisco Ribeiro',
-    role: 'developer',
+    role: 'analyst',
     github: 'Xico20230',
     email: 'kikorafa01@gmail.com',
     linkedin: 'https://www.linkedin.com/in/franciscorcribeiro/',
@@ -135,7 +135,7 @@ const i18n = {
     teamIcon: 'fa-solid fa-users',
     teamClickHint: 'Clica para ver mais',
     contribTitle: 'Desenvolvimento',
-    roles: { lead: 'Desenvolvedor Principal', designer: 'Designer e Desenvolvedora', developer: 'Desenvolvedor' } as Record<string, string>,
+    roles: { lead: 'Desenvolvedor Principal', designer: 'Designer e Desenvolvedora', developer: 'Desenvolvedor', analyst: 'Analista de Sistemas' } as Record<string, string>,
     tasks: { frontend: 'Front-end', database: 'Base de Dados', dataset: 'Dataset', apis: "API's", admin: 'Área Admin', security: 'Segurança', seo: 'SEO', chatbot: 'ChatBot Users', login: 'Sistema de Login', interface: 'Interface', testScripts: 'Scripts de Teste', policies: 'Políticas', report: 'Relatório', diagrams: 'Diagramas', powerpoint: 'PowerPoint', terms: 'Termos de Serviço' } as Record<string, string>,
   },
   en: {
@@ -170,7 +170,7 @@ const i18n = {
     teamIcon: 'fa-solid fa-users',
     teamClickHint: 'Click for more',
     contribTitle: 'Development',
-    roles: { lead: 'Lead Developer', designer: 'Designer & Developer', developer: 'Developer' } as Record<string, string>,
+    roles: { lead: 'Lead Developer', designer: 'Designer & Developer', developer: 'Developer', analyst: 'Systems Analyst' } as Record<string, string>,
     tasks: { frontend: 'Front-end', database: 'Database', dataset: 'Dataset', apis: "API's", admin: 'Admin Area', security: 'Security', seo: 'SEO', chatbot: 'ChatBot Users', login: 'Login System', interface: 'Interface', testScripts: 'Test Scripts', policies: 'Policies', report: 'Report', diagrams: 'Diagrams', powerpoint: 'PowerPoint', terms: 'Terms of Service' } as Record<string, string>,
   },
 };
