@@ -22,7 +22,7 @@ requests>=2.31.0
 
 # --- Variáveis de Ambiente ---
 # Carregamento seguro de .env
-python-dotenv>=1.0.0
+python-dotenv>=1.2.2
 
 # --- Hashing ---
 # hashlib já vem incluído no Python, não precisa de instalação
