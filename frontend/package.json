@@ -32,7 +32,7 @@
     "@types/react-dom": "^18.2.18",
     "eslint": "^9.39.2",
     "eslint-config-next": "^16.2.2",
-    "typescript": "^5.3.3"
+    "typescript": "^6.0.3"
   },
   "overrides": {
     "glob": ">=10.5.0",
