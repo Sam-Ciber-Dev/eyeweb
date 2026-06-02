@@ -13,25 +13,25 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@marsidev/react-turnstile": "^1.5.0",
-    "@supabase/ssr": "^0.10.0",
+    "@marsidev/react-turnstile": "^1.5.2",
+    "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.45.0",
     "@types/crypto-js": "^4.2.2",
     "crypto-js": "^4.2.0",
-    "framer-motion": "^12.38.0",
+    "framer-motion": "^12.40.0",
     "jszip": "^3.10.1",
-    "next": "^16.1.6",
+    "next": "^16.2.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-select": "^5.10.2",
     "recharts": "^3.8.1"
   },
   "devDependencies": {
-    "@types/node": "^25.5.2",
+    "@types/node": "^25.9.1",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "eslint": "^9.39.2",
-    "eslint-config-next": "^16.2.2",
+    "eslint-config-next": "^16.2.7",
     "typescript": "^5.3.3"
   },
   "overrides": {
