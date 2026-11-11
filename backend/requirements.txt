@@ -45,7 +45,7 @@ pydantic-settings>=2.1.0
 # ===========================================
 
 # --- Supabase (Cache de URLs) ---
-supabase>=2.0.0
+supabase>=2.29.0
 
 # --- Groq (AI com Llama 3) ---
 groq>=0.4.0
