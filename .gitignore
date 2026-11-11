@@ -67,3 +67,6 @@ logs/
 *.tmp
 coverage/
 .nyc_output/
+
+# Report source documents are kept locally; only the PDFs are committed
+docs/*.docx
