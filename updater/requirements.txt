@@ -18,7 +18,7 @@ pyarrow>=14.0.0
 
 # --- HTTP Requests ---
 # Para obter dados de APIs externas (se necessário)
-requests>=2.31.0
+requests>=2.33.1
 
 # --- Variáveis de Ambiente ---
 # Carregamento seguro de .env
